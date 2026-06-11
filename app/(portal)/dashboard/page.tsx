@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Bar,
   BarChart,
@@ -15,10 +16,19 @@ import {
   Home,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import type { GrowthPoint, OverviewStats } from "@/lib/types";
+import {
+  activityDetail,
+  activityHref,
+  activityTitle,
+  activityTone,
+} from "@/lib/activity";
+import { withBasePath } from "@/lib/base-path";
+import { downloadCsv } from "@/lib/export";
+import type { ActivityItem, GrowthPoint, OverviewStats } from "@/lib/types";
 
 type GrowthPeriod = 7 | 30 | 90;
 
@@ -27,6 +37,34 @@ const GROWTH_PERIODS: { label: string; days: GrowthPeriod }[] = [
   { label: "30D", days: 30 },
   { label: "90D", days: 90 },
 ];
+
+const QUICK_ACTIONS = [
+  {
+    label: "User Approvals",
+    description: "Review pending identity verifications",
+    href: "/user-approvals",
+    disabled: false,
+  },
+  {
+    label: "Host Applications",
+    description: "Approve or reject host requests",
+    href: "/host-applications",
+    disabled: false,
+  },
+  {
+    label: "Safety & Compliance",
+    description: "Triage open safety reports",
+    href: "/reports",
+    disabled: false,
+  },
+  {
+    label: "Export Reports",
+    description: "Download safety report CSV",
+    href: null,
+    disabled: false,
+    exportReports: true,
+  },
+] as const;
 
 function StatCard({
   label,
@@ -64,6 +102,9 @@ export default function DashboardPage() {
   const [growthPeriod, setGrowthPeriod] = useState<GrowthPeriod>(30);
   const [growthData, setGrowthData] = useState<GrowthPoint[]>([]);
   const [growthLoading, setGrowthLoading] = useState(true);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     api.getOverview().then(setStats).catch(() => setStats(null));
@@ -78,8 +119,49 @@ export default function DashboardPage() {
       .finally(() => setGrowthLoading(false));
   }, [growthPeriod]);
 
+  useEffect(() => {
+    setActivityLoading(true);
+    api
+      .getActivity(8)
+      .then((data) => setActivity(data.items))
+      .catch(() => setActivity([]))
+      .finally(() => setActivityLoading(false));
+  }, []);
+
   const pendingTasks =
     (stats?.pending_identity_verifications ?? 0) + (stats?.pending_host_applications ?? 0);
+
+  const exportReports = async () => {
+    setExporting(true);
+    try {
+      const res = await api.listSafetyReports({ limit: 100 });
+      downloadCsv("offscreen-safety-reports.csv", [
+        [
+          "id",
+          "reported_user",
+          "reporter",
+          "category",
+          "status",
+          "description",
+          "created_at",
+        ],
+        ...res.items.map((item) => [
+          item.id,
+          item.reported_display_name,
+          item.reporter_display_name,
+          item.category,
+          item.status,
+          item.description ?? "",
+          item.created_at,
+        ]),
+      ]);
+      toast.success(`Exported ${res.items.length} reports`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <>
@@ -170,33 +252,29 @@ export default function DashboardPage() {
           <div className="rounded-card border border-surface-border bg-white p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-brand-dark">Recent Activity</h2>
-              <button type="button" className="text-xs font-medium text-brand">
+              <Link href={withBasePath("/reports")} className="text-xs font-medium text-brand">
                 View All
-              </button>
+              </Link>
             </div>
             <div className="space-y-4 text-sm">
-              {[
-                {
-                  title: "Identity reviews pending",
-                  detail: `${stats?.pending_identity_verifications ?? 0} submissions awaiting approval`,
-                  tone: "text-brand",
-                },
-                {
-                  title: "Open safety reports",
-                  detail: `${stats?.open_safety_reports ?? 0} incidents need triage`,
-                  tone: "text-red-600",
-                },
-                {
-                  title: "Host applications",
-                  detail: `${stats?.pending_host_applications ?? 0} applications in queue`,
-                  tone: "text-brand",
-                },
-              ].map((item) => (
-                <div key={item.title} className="rounded-lg border border-surface-border p-3">
-                  <p className={`font-semibold ${item.tone}`}>{item.title}</p>
-                  <p className="mt-1 text-text-secondary">{item.detail}</p>
-                </div>
-              ))}
+              {activityLoading ? (
+                <p className="text-text-secondary">Loading activity…</p>
+              ) : activity.length === 0 ? (
+                <p className="text-text-secondary">No recent platform activity yet.</p>
+              ) : (
+                activity.map((item) => (
+                  <Link
+                    key={`${item.kind}-${item.entity_id}`}
+                    href={activityHref(item)}
+                    className="block rounded-lg border border-surface-border p-3 transition-colors hover:bg-surface-inset/40"
+                  >
+                    <p className={`font-semibold ${activityTone(item)}`}>
+                      {activityTitle(item)}
+                    </p>
+                    <p className="mt-1 text-text-secondary">{activityDetail(item)}</p>
+                  </Link>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -204,21 +282,34 @@ export default function DashboardPage() {
         <div className="mt-8">
           <h2 className="mb-4 text-lg font-semibold text-brand-dark">Quick Management</h2>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {[
-              "Update Policies",
-              "Broadcasting",
-              "Compliance",
-              "Export Data",
-            ].map((label) => (
+            {QUICK_ACTIONS.map((action) => (
               <div
-                key={label}
+                key={action.label}
                 className="rounded-card border border-surface-border bg-white p-5"
               >
-                <p className="font-semibold text-brand-dark">{label}</p>
-                <p className="mt-1 text-xs text-text-secondary">Coming soon</p>
-                <Button variant="outline" size="sm" className="mt-4" disabled>
-                  Open
-                </Button>
+                <p className="font-semibold text-brand-dark">{action.label}</p>
+                <p className="mt-1 text-xs text-text-secondary">{action.description}</p>
+                {"exportReports" in action && action.exportReports ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    disabled={exporting}
+                    onClick={exportReports}
+                  >
+                    {exporting ? "Exporting…" : "Export CSV"}
+                  </Button>
+                ) : action.href ? (
+                  <Link href={withBasePath(action.href)}>
+                    <Button variant="outline" size="sm" className="mt-4">
+                      Open
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button variant="outline" size="sm" className="mt-4" disabled>
+                    Open
+                  </Button>
+                )}
               </div>
             ))}
           </div>

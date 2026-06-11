@@ -1,9 +1,11 @@
 import { withBasePath } from "./base-path";
 import type {
+  ActivityItem,
   GrowthStats,
   HostApplication,
   IdentityVerificationDetail,
   IdentityVerificationItem,
+  ModerationInsights,
   OverviewStats,
   SafetyReport,
 } from "./types";
@@ -29,10 +31,21 @@ export const api = {
   getGrowth: (days: 7 | 30 | 90) =>
     tribeeFetch<GrowthStats>(`/admin/growth?days=${days}`),
 
-  listIdentityVerifications: (params?: { limit?: number; offset?: number }) => {
+  getActivity: (limit = 10) =>
+    tribeeFetch<{ items: ActivityItem[] }>(`/admin/activity?limit=${limit}`),
+
+  getModerationInsights: () =>
+    tribeeFetch<ModerationInsights>("/admin/moderation-insights"),
+
+  listIdentityVerifications: (params?: {
+    limit?: number;
+    offset?: number;
+    status?: string;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.limit) qs.set("limit", String(params.limit));
     if (params?.offset) qs.set("offset", String(params.offset));
+    if (params?.status) qs.set("status", params.status);
     const query = qs.toString();
     return tribeeFetch<{ items: IdentityVerificationItem[] }>(
       `/admin/identity-verifications${query ? `?${query}` : ""}`
@@ -55,9 +68,15 @@ export const api = {
       body: JSON.stringify({ reason }),
     }),
 
-  listSafetyReports: (params?: { status?: string; limit?: number; offset?: number }) => {
+  listSafetyReports: (params?: {
+    status?: string;
+    category?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.status) qs.set("status", params.status);
+    if (params?.category) qs.set("category", params.category);
     if (params?.limit) qs.set("limit", String(params.limit));
     if (params?.offset) qs.set("offset", String(params.offset));
     const query = qs.toString();

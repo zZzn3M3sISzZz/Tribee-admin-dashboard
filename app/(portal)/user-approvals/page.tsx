@@ -18,18 +18,23 @@ export default function UserApprovalsPage() {
   const [detail, setDetail] = useState<IdentityVerificationDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [acting, setActing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("pending");
+  const [showFilters, setShowFilters] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.listIdentityVerifications({ limit: 50 });
+      const res = await api.listIdentityVerifications({
+        limit: 50,
+        status: statusFilter === "" ? "all" : statusFilter,
+      });
       setItems(res.items);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load queue");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
     load();
@@ -69,11 +74,11 @@ export default function UserApprovalsPage() {
     }
   };
 
-  const handleReject = async () => {
+  const handleReject = async (reason: string) => {
     if (!selectedId) return;
     setActing(true);
     try {
-      await api.rejectIdentity(selectedId, "Documents unclear — please re-upload");
+      await api.rejectIdentity(selectedId, reason);
       toast.success("Re-submission requested");
       closeModal();
       load();
@@ -105,7 +110,7 @@ export default function UserApprovalsPage() {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => setShowFilters((v) => !v)}>
               <SlidersHorizontal className="h-4 w-4" />
               Filter
             </Button>
@@ -115,6 +120,30 @@ export default function UserApprovalsPage() {
             </Button>
           </div>
         </div>
+
+        {showFilters ? (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {[
+              { label: "Pending", value: "pending" },
+              { label: "Approved", value: "approved" },
+              { label: "Rejected", value: "rejected" },
+              { label: "All", value: "" },
+            ].map((filter) => (
+              <button
+                key={filter.label}
+                type="button"
+                onClick={() => setStatusFilter(filter.value)}
+                className={`rounded-full px-3 py-1 text-sm ${
+                  statusFilter === filter.value
+                    ? "bg-brand text-white"
+                    : "bg-surface-inset text-text-muted"
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <div className="overflow-hidden rounded-card border border-surface-border bg-white">
           <table className="w-full text-left text-sm">

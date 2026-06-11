@@ -22,12 +22,19 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [serverError, setServerError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  useEffect(() => {
+    fetch("https://api.enshaproductions.com/health")
+      .then((r) => setApiHealthy(r.ok))
+      .catch(() => setApiHealthy(false));
+  }, []);
 
   useEffect(() => {
     if (searchParams.get("error") === "unauthorized") {
@@ -175,7 +182,18 @@ function LoginForm() {
         <div className="space-y-4 text-center">
           <div className="flex items-center justify-center gap-6 text-[11px] font-medium uppercase tracking-[0.2em] text-text-secondary/60">
             <span>
-              System Status: <strong className="text-brand-dark">Operational</strong>
+              System Status:{" "}
+              <strong
+                className={
+                  apiHealthy === false ? "text-red-600" : "text-brand-dark"
+                }
+              >
+                {apiHealthy === null
+                  ? "Checking…"
+                  : apiHealthy
+                    ? "Operational"
+                    : "Degraded"}
+              </strong>
             </span>
             <span className="h-1 w-1 rounded-full bg-surface-border" />
             <span>V2.4.0-ADMIN</span>

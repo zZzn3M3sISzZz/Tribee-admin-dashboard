@@ -6,8 +6,16 @@ import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { downloadCsv } from "@/lib/export";
 import { formatDate, initials } from "@/lib/utils";
-import type { SafetyReport } from "@/lib/types";
+import type { ModerationInsights, SafetyReport } from "@/lib/types";
+
+const STATUS_FILTERS = [
+  { label: "All", value: "" },
+  { label: "Open", value: "open" },
+  { label: "Investigating", value: "investigating" },
+  { label: "Resolved", value: "resolved" },
+] as const;
 
 function StatusBadge({ status }: { status: string }) {
   const normalized = status.toLowerCase();
@@ -30,11 +38,18 @@ export default function ReportsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [insights, setInsights] = useState<ModerationInsights | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.listSafetyReports({ limit: 50 });
+      const res = await api.listSafetyReports({
+        limit: 50,
+        status: statusFilter || undefined,
+        category: categoryFilter || undefined,
+      });
       setItems(res.items);
       setTotal(res.total);
     } catch (e) {
@@ -42,19 +57,66 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
+  }, [statusFilter, categoryFilter]);
+
+  const loadInsights = useCallback(async () => {
+    try {
+      const res = await api.getModerationInsights();
+      setInsights(res);
+    } catch {
+      setInsights(null);
+    }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  useEffect(() => {
+    loadInsights();
+  }, [loadInsights]);
+
   const updateStatus = async (reportId: string, status: string) => {
     try {
       await api.updateSafetyReportStatus(reportId, status);
       toast.success(`Report marked ${status}`);
       load();
+      loadInsights();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Update failed");
+    }
+  };
+
+  const exportLogs = async () => {
+    try {
+      const res = await api.listSafetyReports({
+        limit: 100,
+        status: statusFilter || undefined,
+        category: categoryFilter || undefined,
+      });
+      downloadCsv("offscreen-safety-reports.csv", [
+        [
+          "id",
+          "reported_user",
+          "reporter",
+          "category",
+          "status",
+          "description",
+          "created_at",
+        ],
+        ...res.items.map((item) => [
+          item.id,
+          item.reported_display_name,
+          item.reporter_display_name,
+          item.category,
+          item.status,
+          item.description ?? "",
+          item.created_at,
+        ]),
+      ]);
+      toast.success(`Exported ${res.items.length} reports`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed");
     }
   };
 
@@ -63,9 +125,16 @@ export default function ReportsPage() {
     return (
       !q ||
       item.reported_display_name.toLowerCase().includes(q) ||
-      item.category.toLowerCase().includes(q)
+      item.reporter_display_name.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q) ||
+      item.id.toLowerCase().includes(q)
     );
   });
+
+  const pulse = insights?.safety_pulse;
+  const slaProgress = pulse
+    ? Math.min(100, (pulse.resolution_rate_percent / pulse.sla_target_percent) * 100)
+    : 0;
 
   return (
     <>
@@ -83,11 +152,16 @@ export default function ReportsPage() {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline">
+            <Button variant="outline" onClick={exportLogs}>
               <Download className="h-4 w-4" />
               Export Logs
             </Button>
-            <Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                toast.message("Manual flagging is handled in-app by members and hosts.")
+              }
+            >
               <Flag className="h-4 w-4" />
               Manual Flag
             </Button>
@@ -98,13 +172,54 @@ export default function ReportsPage() {
           <div className="overflow-hidden rounded-card border border-surface-border bg-white">
             <div className="flex flex-wrap items-center gap-3 border-b border-surface-border px-6 py-4 text-sm">
               <span className="font-semibold uppercase tracking-wider text-text-secondary">
-                Filter by:
+                Status:
               </span>
-              <span className="rounded-full bg-surface-inset px-3 py-1">Type: All Incidents</span>
-              <span className="rounded-full bg-surface-inset px-3 py-1">Priority: All</span>
-              <span className="rounded-full bg-brand-tint px-3 py-1 text-brand">
-                Open: {items.filter((i) => i.status === "open").length}
-              </span>
+              {STATUS_FILTERS.map((filter) => (
+                <button
+                  key={filter.label}
+                  type="button"
+                  onClick={() => setStatusFilter(filter.value)}
+                  className={`rounded-full px-3 py-1 ${
+                    statusFilter === filter.value
+                      ? "bg-brand-tint text-brand"
+                      : "bg-surface-inset text-text-muted"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+              {insights?.categories.length ? (
+                <>
+                  <span className="font-semibold uppercase tracking-wider text-text-secondary">
+                    Category:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter("")}
+                    className={`rounded-full px-3 py-1 ${
+                      !categoryFilter
+                        ? "bg-brand-tint text-brand"
+                        : "bg-surface-inset text-text-muted"
+                    }`}
+                  >
+                    All
+                  </button>
+                  {insights.categories.map((cat) => (
+                    <button
+                      key={cat.category}
+                      type="button"
+                      onClick={() => setCategoryFilter(cat.category)}
+                      className={`rounded-full px-3 py-1 ${
+                        categoryFilter === cat.category
+                          ? "bg-brand-tint text-brand"
+                          : "bg-surface-inset text-text-muted"
+                      }`}
+                    >
+                      {cat.category} ({cat.count})
+                    </button>
+                  ))}
+                </>
+              ) : null}
             </div>
 
             <table className="w-full text-left text-sm">
@@ -180,7 +295,7 @@ export default function ReportsPage() {
               </tbody>
             </table>
             <div className="border-t border-surface-border px-6 py-4 text-xs text-text-secondary">
-              Showing {filtered.length} of {total} active reports
+              Showing {filtered.length} of {total} reports
             </div>
           </div>
 
@@ -192,20 +307,42 @@ export default function ReportsPage() {
                   CRITICAL
                 </span>
               </div>
-              <p className="text-sm text-text-secondary">
-                Repeat offender analytics will appear here once enough report history is collected.
-              </p>
+              {insights?.repeat_offenders.length ? (
+                <div className="space-y-3">
+                  {insights.repeat_offenders.map((offender) => (
+                    <div
+                      key={offender.user_id}
+                      className="rounded-lg border border-surface-border p-3"
+                    >
+                      <p className="font-medium text-brand-dark">{offender.display_name}</p>
+                      <p className="mt-1 text-xs text-text-secondary">
+                        {offender.report_count} reports filed
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-text-secondary">
+                  No users with multiple reports yet.
+                </p>
+              )}
             </div>
             <div className="rounded-card bg-brand p-5 text-white">
               <h2 className="font-semibold">Safety Pulse</h2>
               <p className="mt-2 text-sm text-white/80">
-                Community trust metrics and SLA compliance tracking are coming soon.
+                {pulse
+                  ? `${pulse.open_reports} open · ${pulse.investigating_reports} investigating · ${pulse.reports_last_7d} new this week`
+                  : "Loading moderation metrics…"}
               </p>
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/20">
-                <div className="h-full w-3/4 rounded-full bg-status-mint" />
+                <div
+                  className="h-full rounded-full bg-status-mint transition-all"
+                  style={{ width: `${slaProgress}%` }}
+                />
               </div>
               <p className="mt-2 text-[10px] uppercase tracking-wider text-white/60">
-                Target: 90% SLA compliance
+                Resolution rate: {pulse?.resolution_rate_percent ?? 0}% · Target:{" "}
+                {pulse?.sla_target_percent ?? 90}%
               </p>
             </div>
           </aside>
