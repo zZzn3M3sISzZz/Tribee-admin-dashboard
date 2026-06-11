@@ -1,0 +1,66 @@
+export interface AuthResponse {
+  user_id: string;
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  token_type: string;
+}
+
+export interface MeResponse {
+  user: { id: string; status: string; verification_level: string };
+  profile: { display_name: string; email?: string };
+  roles: string[];
+}
+
+export interface IdentitySubmission {
+  id: string;
+  user_id: string;
+  status: string;
+  has_government_id: boolean;
+  has_selfie: boolean;
+  rejection_reason: string | null;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+}
+
+export interface IdentityVerificationItem {
+  submission: IdentitySubmission;
+  display_name: string;
+  user_verification_level: string;
+}
+
+export interface IdentityVerificationDetail extends IdentityVerificationItem {
+  government_id_url?: string | null;
+  selfie_url?: string | null;
+  email?: string | null;
+}
+
+export interface SafetyReport {
+  id: string;
+  reported_user_id: string;
+  reported_display_name: string;
+  reporter_id: string;
+  reporter_display_name: string;
+  category: string;
+  description: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface HostApplication {
+  host_id: string;
+  user_id: string;
+  display_name: string;
+  city_id: string;
+  status: string;
+  created_at: string;
+  vouch_count: number;
+}
+
+export interface OverviewStats {
+  total_members: number;
+  active_hosts: number;
+  open_safety_reports: number;
+  pending_identity_verifications: number;
+  pending_host_applications: number;
+}
