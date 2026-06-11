@@ -1,5 +1,6 @@
 import { withBasePath } from "./base-path";
 import type {
+  GrowthStats,
   HostApplication,
   IdentityVerificationDetail,
   IdentityVerificationItem,
@@ -24,6 +25,9 @@ async function tribeeFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   getOverview: () => tribeeFetch<OverviewStats>("/admin/overview"),
+
+  getGrowth: (days: 7 | 30 | 90) =>
+    tribeeFetch<GrowthStats>(`/admin/growth?days=${days}`),
 
   listIdentityVerifications: (params?: { limit?: number; offset?: number }) => {
     const qs = new URLSearchParams();

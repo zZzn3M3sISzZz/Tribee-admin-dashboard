@@ -18,15 +18,14 @@ import {
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import type { OverviewStats } from "@/lib/types";
+import type { GrowthPoint, OverviewStats } from "@/lib/types";
 
-const CHART_DATA = [
-  { month: "Jan", members: 420, hosts: 28 },
-  { month: "Feb", members: 510, hosts: 35 },
-  { month: "Mar", members: 680, hosts: 42 },
-  { month: "Apr", members: 790, hosts: 48 },
-  { month: "May", members: 920, hosts: 55 },
-  { month: "Jun", members: 1100, hosts: 62 },
+type GrowthPeriod = 7 | 30 | 90;
+
+const GROWTH_PERIODS: { label: string; days: GrowthPeriod }[] = [
+  { label: "7D", days: 7 },
+  { label: "30D", days: 30 },
+  { label: "90D", days: 90 },
 ];
 
 function StatCard({
@@ -62,10 +61,22 @@ function StatCard({
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<OverviewStats | null>(null);
+  const [growthPeriod, setGrowthPeriod] = useState<GrowthPeriod>(30);
+  const [growthData, setGrowthData] = useState<GrowthPoint[]>([]);
+  const [growthLoading, setGrowthLoading] = useState(true);
 
   useEffect(() => {
     api.getOverview().then(setStats).catch(() => setStats(null));
   }, []);
+
+  useEffect(() => {
+    setGrowthLoading(true);
+    api
+      .getGrowth(growthPeriod)
+      .then((data) => setGrowthData(data.points))
+      .catch(() => setGrowthData([]))
+      .finally(() => setGrowthLoading(false));
+  }, [growthPeriod]);
 
   const pendingTasks =
     (stats?.pending_identity_verifications ?? 0) + (stats?.pending_host_applications ?? 0);
@@ -117,27 +128,42 @@ export default function DashboardPage() {
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-brand-dark">Growth Over Time</h2>
               <div className="flex gap-2 text-xs">
-                {["7D", "30D", "90D"].map((period, i) => (
+                {GROWTH_PERIODS.map(({ label, days }) => (
                   <button
-                    key={period}
+                    key={label}
                     type="button"
-                    className={`rounded-full px-3 py-1 ${i === 1 ? "bg-brand text-white" : "bg-surface-inset text-text-muted"}`}
+                    onClick={() => setGrowthPeriod(days)}
+                    className={`rounded-full px-3 py-1 ${
+                      growthPeriod === days
+                        ? "bg-brand text-white"
+                        : "bg-surface-inset text-text-muted"
+                    }`}
                   >
-                    {period}
+                    {label}
                   </button>
                 ))}
               </div>
             </div>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={CHART_DATA}>
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="members" fill="#1b4332" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="hosts" fill="#a5d0b9" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {growthLoading ? (
+                <div className="flex h-full items-center justify-center text-sm text-text-secondary">
+                  Loading growth data…
+                </div>
+              ) : growthData.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-sm text-text-secondary">
+                  No growth data for this period.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={growthData}>
+                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Bar dataKey="members" name="New members" fill="#1b4332" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="hosts" name="New hosts" fill="#a5d0b9" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 

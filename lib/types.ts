@@ -64,3 +64,15 @@ export interface OverviewStats {
   pending_identity_verifications: number;
   pending_host_applications: number;
 }
+
+export interface GrowthPoint {
+  label: string;
+  members: number;
+  hosts: number;
+}
+
+export interface GrowthStats {
+  period_days: number;
+  bucket: "day" | "week";
+  points: GrowthPoint[];
+}
