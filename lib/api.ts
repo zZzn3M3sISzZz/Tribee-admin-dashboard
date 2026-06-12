@@ -1,6 +1,8 @@
 import { withBasePath } from "./base-path";
 import type {
   ActivityItem,
+  CatalogItem,
+  CreateVenueResponse,
   GrowthStats,
   HostApplication,
   IdentityVerificationDetail,
@@ -8,6 +10,7 @@ import type {
   ModerationInsights,
   OverviewStats,
   SafetyReport,
+  TaxonomyKind,
 } from "./types";
 
 async function tribeeFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -109,4 +112,47 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ reason }),
     }),
+
+  listCatalog: (kind: TaxonomyKind) => {
+    const path =
+      kind === "interest"
+        ? "/admin/catalog/interests"
+        : kind === "comfort"
+          ? "/admin/catalog/comfort-prefs"
+          : "/admin/catalog/social-intents";
+    return tribeeFetch<{ items: CatalogItem[] }>(path);
+  },
+
+  createCatalogItem: (
+    kind: TaxonomyKind,
+    body: { id: string; label: string; subtitle?: string; sort_order?: number }
+  ) => {
+    const path =
+      kind === "interest"
+        ? "/admin/catalog/interests"
+        : kind === "comfort"
+          ? "/admin/catalog/comfort-prefs"
+          : "/admin/catalog/social-intents";
+    return tribeeFetch<{ id: string; label: string }>(path, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  createVenue: async (metadata: Record<string, unknown>, images: File[]) => {
+    const form = new FormData();
+    form.append("metadata", JSON.stringify(metadata));
+    for (const image of images) {
+      form.append("images", image, image.name);
+    }
+    const res = await fetch(withBasePath("/api/tribee/admin/venues"), {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? body.message ?? `Request failed (${res.status})`);
+    }
+    return res.json() as Promise<CreateVenueResponse>;
+  },
 };

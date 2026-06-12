@@ -113,3 +113,20 @@ export interface ModerationInsights {
   repeat_offenders: RepeatOffender[];
   categories: ReportCategoryCount[];
 }
+
+export type TaxonomyKind = "interest" | "comfort" | "motive";
+
+export interface CatalogItem {
+  id: string;
+  label: string;
+  subtitle?: string | null;
+  sort_order: number;
+  user_count: number;
+}
+
+export interface CreateVenueResponse {
+  venue_id: string;
+  name: string;
+  image_count: number;
+  image_urls: string[];
+}

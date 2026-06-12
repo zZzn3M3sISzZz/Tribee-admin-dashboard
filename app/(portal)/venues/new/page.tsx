@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   Check,
   ChevronRight,
-  ExternalLink,
+  ImagePlus,
   Info,
+  Loader2,
   MapPin,
   Plus,
   UtensilsCrossed,
@@ -17,6 +18,7 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const VENUE_TYPES = [
@@ -27,6 +29,22 @@ const VENUE_TYPES = [
   "Outdoor Venue",
 ];
 
+const CITY_OPTIONS = [
+  { slug: "mumbai", label: "Mumbai" },
+  { slug: "delhi", label: "Delhi" },
+  { slug: "bangalore", label: "Bangalore" },
+  { slug: "chennai", label: "Chennai" },
+  { slug: "hyderabad", label: "Hyderabad" },
+  { slug: "pune", label: "Pune" },
+  { slug: "kolkata", label: "Kolkata" },
+];
+
+const BUDGET_TIERS = [
+  { value: "budget", label: "Budget" },
+  { value: "mid", label: "Mid" },
+  { value: "premium", label: "Premium" },
+];
+
 const AMENITIES = [
   { id: "breakfast", label: "Breakfast", icon: "🍞" },
   { id: "lunch", label: "Lunch", icon: "🍔" },
@@ -34,6 +52,8 @@ const AMENITIES = [
   { id: "board-games", label: "Board Games", icon: "🎮" },
   { id: "sports", label: "Sports", icon: "🏋️" },
 ] as const;
+
+const MAX_IMAGES = 3;
 
 function SectionCard({
   icon: Icon,
@@ -74,15 +94,27 @@ export default function NewVenuePage() {
   const [venueType, setVenueType] = useState(VENUE_TYPES[0]);
   const [about, setAbout] = useState("");
   const [address, setAddress] = useState("");
-  const [city, setCity] = useState("Mumbai");
+  const [city, setCity] = useState("mumbai");
   const [postalCode, setPostalCode] = useState("");
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
-    "breakfast",
-    "lunch",
-    "board-games",
-  ]);
-  const [customTags, setCustomTags] = useState(["Private Cinema", "Pet Friendly"]);
+  const [budgetTier, setBudgetTier] = useState("mid");
+  const [maxTables, setMaxTables] = useState("10");
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
+  const [images, setImages] = useState<File[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  const previewUrls = useMemo(
+    () => images.map((file) => URL.createObjectURL(file)),
+    [images]
+  );
+
+  useEffect(
+    () => () => {
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    },
+    [previewUrls]
+  );
 
   const toggleAmenity = (id: string) => {
     setSelectedAmenities((prev) =>
@@ -101,16 +133,76 @@ export default function NewVenuePage() {
     setCustomTags((prev) => prev.filter((t) => t !== tag));
   };
 
-  const handleSaveDraft = () => {
-    toast.success("Draft saved locally (backend not wired yet)");
+  const onImageSelect = (files: FileList | null) => {
+    if (!files) return;
+    const incoming = Array.from(files).filter((file) => file.type.startsWith("image/"));
+    if (!incoming.length) {
+      toast.error("Please choose image files only");
+      return;
+    }
+    setImages((prev) => {
+      const merged = [...prev, ...incoming].slice(0, MAX_IMAGES);
+      if (prev.length + incoming.length > MAX_IMAGES) {
+        toast.message(`Only ${MAX_IMAGES} images are allowed per venue`);
+      }
+      return merged;
+    });
   };
 
-  const handleComplete = () => {
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const buildDescription = () => {
+    const parts = [about.trim()];
+    const amenities = [...selectedAmenities, ...customTags];
+    if (amenities.length) {
+      parts.push(`Amenities: ${amenities.join(", ")}`);
+    }
+    if (postalCode.trim()) {
+      parts.push(`Postal code: ${postalCode.trim()}`);
+    }
+    return parts.filter(Boolean).join("\n\n");
+  };
+
+  const handleComplete = async () => {
     if (!venueName.trim() || !address.trim()) {
       toast.error("Venue name and address are required");
       return;
     }
-    toast.success("Venue registration queued (backend not wired yet)");
+    if (images.length < 1) {
+      toast.error("Add at least 1 venue image before publishing");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await api.createVenue(
+        {
+          name: venueName.trim(),
+          city_id: city,
+          budget_tier: budgetTier,
+          max_tables: Number(maxTables) || 10,
+          description: buildDescription() || undefined,
+          address: address.trim(),
+          venue_type: venueType,
+          h3_index: 0,
+        },
+        images
+      );
+      toast.success(`Venue "${result.name}" created with ${result.image_count} images`);
+      setVenueName("");
+      setAbout("");
+      setAddress("");
+      setPostalCode("");
+      setSelectedAmenities([]);
+      setCustomTags([]);
+      setImages([]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Venue creation failed");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -131,14 +223,9 @@ export default function NewVenuePage() {
               Onboard New Venue
             </h1>
             <p className="mt-2 max-w-2xl text-text-muted">
-              Create a premium profile for a new partner venue. All fields marked with * are
-              mandatory for publication.
+              Create a partner venue profile. At least one image is required, up to three.
             </p>
           </div>
-          <Button>
-            <Plus className="h-4 w-4" />
-            New Venue
-          </Button>
         </div>
 
         <form
@@ -173,6 +260,32 @@ export default function NewVenuePage() {
                     ))}
                   </select>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <FieldLabel>Budget Tier</FieldLabel>
+                    <select
+                      value={budgetTier}
+                      onChange={(e) => setBudgetTier(e.target.value)}
+                      className="flex h-12 w-full rounded-lg border border-surface-border bg-surface px-4 text-sm"
+                    >
+                      {BUDGET_TIERS.map((tier) => (
+                        <option key={tier.value} value={tier.value}>
+                          {tier.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <FieldLabel>Max Tables</FieldLabel>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={maxTables}
+                      onChange={(e) => setMaxTables(e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
               <div>
                 <FieldLabel>About the Venue</FieldLabel>
@@ -199,8 +312,18 @@ export default function NewVenuePage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <FieldLabel>City</FieldLabel>
-                    <Input value={city} onChange={(e) => setCity(e.target.value)} />
+                    <FieldLabel required>City</FieldLabel>
+                    <select
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="flex h-12 w-full rounded-lg border border-surface-border bg-surface px-4 text-sm"
+                    >
+                      {CITY_OPTIONS.map((option) => (
+                        <option key={option.slug} value={option.slug}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <FieldLabel>Postal Code</FieldLabel>
@@ -212,38 +335,62 @@ export default function NewVenuePage() {
                   </div>
                 </div>
               </div>
-              <div className="relative overflow-hidden rounded-lg bg-brand-dark">
-                <div className="relative aspect-[4/3] w-full opacity-90">
-                  <Image
-                    src="https://images.unsplash.com/photo-1524661135-423995f22d0b?w=600&h=400&fit=crop"
-                    alt="Map preview"
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                  <div className="absolute inset-0 bg-brand-dark/40" />
-                </div>
-                <div className="absolute bottom-4 right-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="border-white/30 bg-white text-brand-dark hover:bg-white/90"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Verify on Maps
-                  </Button>
-                </div>
+              <div className="rounded-lg border border-dashed border-surface-border bg-surface-inset p-6 text-sm text-text-secondary">
+                Venue coordinates will be refined in a later release. For now, the city slug
+                drives matching and the address is stored on the venue profile.
               </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            icon={ImagePlus}
+            title="Venue Photos"
+            action={
+              <span className="text-xs text-text-muted">
+                {images.length}/{MAX_IMAGES} uploaded
+              </span>
+            }
+          >
+            <p className="mb-4 text-sm text-text-secondary">
+              Upload between 1 and 3 images. Venues cannot be published without photos.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {previewUrls.map((url, index) => (
+                <div
+                  key={url}
+                  className="relative aspect-[4/3] overflow-hidden rounded-lg border border-surface-border"
+                >
+                  <Image src={url} alt={`Venue ${index + 1}`} fill className="object-cover" unoptimized />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white"
+                    aria-label="Remove image"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              {images.length < MAX_IMAGES ? (
+                <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-surface-border bg-surface-inset text-sm text-text-muted hover:border-brand hover:text-brand">
+                  <ImagePlus className="mb-2 h-6 w-6" />
+                  Add image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => onImageSelect(e.target.files)}
+                  />
+                </label>
+              ) : null}
             </div>
           </SectionCard>
 
           <SectionCard
             icon={UtensilsCrossed}
             title="Venue Offerings & Amenities"
-            action={
-              <span className="text-xs text-text-muted">Select all that apply</span>
-            }
+            action={<span className="text-xs text-text-muted">Select all that apply</span>}
           >
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
               {AMENITIES.map(({ id, label, icon }) => {
@@ -314,13 +461,21 @@ export default function NewVenuePage() {
 
           <div className="flex flex-col gap-4 border-t border-surface-border pt-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-text-muted">
-              Live preview available after basic information is filled
+              {images.length < 1
+                ? "Add at least one image to enable registration"
+                : "Ready to publish this venue to Tribee"}
             </p>
             <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={handleSaveDraft}>
-                Save Draft
+              <Button type="submit" disabled={submitting || images.length < 1}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Publishing…
+                  </>
+                ) : (
+                  "Complete Registration"
+                )}
               </Button>
-              <Button type="submit">Complete Registration</Button>
             </div>
           </div>
         </form>

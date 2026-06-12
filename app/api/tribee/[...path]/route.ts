@@ -22,20 +22,29 @@ async function proxy(
   const tribeePath = `/v1/${params.path.join("/")}`;
   const queryString = req.nextUrl.search;
   const targetUrl = `${apiBase()}${tribeePath}${queryString}`;
+  const contentType = req.headers.get("content-type") ?? "";
 
-  let body: string | undefined;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+  };
+  if (contentType) {
+    headers["Content-Type"] = contentType;
+  }
+
+  let body: BodyInit | undefined;
   if (req.method !== "GET" && req.method !== "DELETE") {
-    body = await req.text();
+    if (contentType.includes("multipart/form-data")) {
+      body = req.body ?? undefined;
+    } else {
+      body = await req.text();
+    }
   }
 
   const upstream = await fetch(targetUrl, {
     method: req.method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    ...(body !== undefined ? { body } : {}),
-  });
+    headers,
+    ...(body !== undefined ? { body, duplex: "half" } : {}),
+  } as RequestInit & { duplex?: "half" });
 
   const responseBody = await upstream.text();
   return new NextResponse(responseBody, {

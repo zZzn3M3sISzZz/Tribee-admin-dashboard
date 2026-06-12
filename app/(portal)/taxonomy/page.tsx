@@ -1,65 +1,49 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Pencil, Plus, Trash2, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { api } from "@/lib/api";
+import { kindLabel, slugifyCatalogId, TAXONOMY_TABS } from "@/lib/taxonomy";
 import { cn } from "@/lib/utils";
-import {
-  kindLabel,
-  MOCK_TAXONOMY,
-  TAXONOMY_TABS,
-  type TaxonomyItem,
-  type TaxonomyKind,
-} from "@/lib/mock-taxonomy";
+import type { CatalogItem, TaxonomyKind } from "@/lib/types";
 
-function TaxonomyCard({ item }: { item: TaxonomyItem }) {
+function TaxonomyCard({ item, kind }: { item: CatalogItem; kind: TaxonomyKind }) {
   return (
     <article className="flex flex-col rounded-card border border-surface-border bg-white p-6">
       <div className="mb-4 flex items-start justify-between">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-status-mint-bg text-xl">
-          {item.icon}
+        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-status-mint-bg text-lg font-bold text-brand">
+          {item.label.charAt(0).toUpperCase()}
         </div>
-        <div className="flex gap-1">
-          <button
-            type="button"
-            className="rounded p-2 text-text-muted hover:bg-surface-inset"
-            aria-label={`Edit ${item.title}`}
-            onClick={() => toast.message("Edit coming soon")}
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className="rounded p-2 text-text-muted hover:bg-red-50 hover:text-red-600"
-            aria-label={`Delete ${item.title}`}
-            onClick={() => toast.message("Delete coming soon")}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <span className="rounded-full bg-surface-inset px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+          {kindLabel(kind)}
+        </span>
       </div>
-      <h3 className="text-lg font-semibold text-brand-dark">{item.title}</h3>
-      <p className="mt-2 flex-1 text-sm leading-relaxed text-text-secondary">
-        {item.description}
-      </p>
+      <h3 className="text-lg font-semibold text-brand-dark">{item.label}</h3>
+      {item.subtitle ? (
+        <p className="mt-2 flex-1 text-sm leading-relaxed text-text-secondary">
+          {item.subtitle}
+        </p>
+      ) : (
+        <p className="mt-2 flex-1 text-sm text-text-muted">ID: {item.id}</p>
+      )}
       <div className="mt-6 flex items-center justify-between border-t border-surface-border pt-4">
         <span className="flex items-center gap-1.5 text-xs text-text-muted">
           <Users className="h-3.5 w-3.5" />
-          {item.userCount.toLocaleString()} Users
+          {item.user_count.toLocaleString()} users
         </span>
-        <span className="rounded-full bg-surface-inset px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-          {kindLabel(item.kind)}
-        </span>
+        <span className="text-xs text-text-disabled">Sort {item.sort_order}</span>
       </div>
     </article>
   );
 }
 
-function InsightCard({ activeTab }: { activeTab: TaxonomyKind }) {
-  const total = MOCK_TAXONOMY[activeTab].reduce((sum, item) => sum + item.userCount, 0);
-  const top = MOCK_TAXONOMY[activeTab][0];
+function InsightCard({ items, activeTab }: { items: CatalogItem[]; activeTab: TaxonomyKind }) {
+  const total = items.reduce((sum, item) => sum + item.user_count, 0);
+  const top = [...items].sort((a, b) => b.user_count - a.user_count)[0];
 
   return (
     <article className="flex flex-col justify-between rounded-card bg-brand p-6 text-white">
@@ -67,7 +51,7 @@ function InsightCard({ activeTab }: { activeTab: TaxonomyKind }) {
         <h3 className="text-lg font-semibold text-status-mint">Category Insight</h3>
         <p className="mt-3 text-sm leading-relaxed text-white/80">
           {top
-            ? `"${top.title}" is the most selected ${kindLabel(activeTab).toLowerCase()} with ${top.userCount.toLocaleString()} mapped users.`
+            ? `"${top.label}" is the most selected ${kindLabel(activeTab).toLowerCase()} with ${top.user_count.toLocaleString()} mapped users.`
             : "Add categories to start tracking onboarding selections."}
         </p>
       </div>
@@ -84,25 +68,77 @@ function InsightCard({ activeTab }: { activeTab: TaxonomyKind }) {
 export default function TaxonomyPage() {
   const [activeTab, setActiveTab] = useState<TaxonomyKind>("interest");
   const [search, setSearch] = useState("");
+  const [items, setItems] = useState<CatalogItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [label, setLabel] = useState("");
+  const [subtitle, setSubtitle] = useState("");
+  const [catalogId, setCatalogId] = useState("");
 
-  const items = useMemo(() => {
-    const list = MOCK_TAXONOMY[activeTab];
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.listCatalog(activeTab);
+      setItems(res.items);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load taxonomy");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return list;
-    return list.filter(
+    if (!q) return items;
+    return items.filter(
       (item) =>
-        item.title.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q)
+        item.label.toLowerCase().includes(q) ||
+        item.id.toLowerCase().includes(q) ||
+        (item.subtitle ?? "").toLowerCase().includes(q)
     );
-  }, [activeTab, search]);
+  }, [items, search]);
+
+  const openModal = () => {
+    setLabel("");
+    setSubtitle("");
+    setCatalogId("");
+    setShowModal(true);
+  };
+
+  const handleCreate = async () => {
+    const trimmedLabel = label.trim();
+    const id = (catalogId || slugifyCatalogId(trimmedLabel)).trim();
+    if (!trimmedLabel || !id) {
+      toast.error("Label is required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.createCatalogItem(activeTab, {
+        id,
+        label: trimmedLabel,
+        subtitle: activeTab === "comfort" ? subtitle.trim() || undefined : undefined,
+        sort_order: items.length,
+      });
+      toast.success(`${kindLabel(activeTab)} option created`);
+      setShowModal(false);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to create option");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <>
-      <Header
-        placeholder="Search taxonomies..."
-        value={search}
-        onChange={setSearch}
-      />
+      <Header placeholder="Search taxonomies..." value={search} onChange={setSearch} />
       <main className="flex-1 overflow-auto px-8 py-8">
         <div className="mb-8 flex items-end justify-between">
           <div>
@@ -110,10 +146,10 @@ export default function TaxonomyPage() {
               Taxonomy Management
             </h1>
             <p className="mt-2 text-text-secondary">
-              Curate and organize onboarding categories for optimal user matching.
+              Curate onboarding categories used for user matching.
             </p>
           </div>
-          <Button onClick={() => toast.message("Add option coming soon")}>
+          <Button onClick={openModal}>
             <Plus className="h-4 w-4" />
             Add New Option
           </Button>
@@ -137,19 +173,80 @@ export default function TaxonomyPage() {
           ))}
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((item) => (
-            <TaxonomyCard key={item.id} item={item} />
-          ))}
-          <InsightCard activeTab={activeTab} />
-        </div>
+        {loading ? (
+          <div className="flex justify-center py-24">
+            <Loader2 className="h-8 w-8 animate-spin text-brand" />
+          </div>
+        ) : (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((item) => (
+              <TaxonomyCard key={item.id} item={item} kind={activeTab} />
+            ))}
+            <InsightCard items={items} activeTab={activeTab} />
+          </div>
+        )}
 
-        {items.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <p className="mt-8 text-center text-sm text-text-muted">
             No categories match your search.
           </p>
         )}
       </main>
+
+      {showModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-card border border-surface-border bg-white p-6 shadow-card">
+            <h2 className="text-xl font-semibold text-brand-dark">
+              Add {kindLabel(activeTab)}
+            </h2>
+            <div className="mt-6 space-y-4">
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                  Label
+                </label>
+                <Input
+                  value={label}
+                  onChange={(e) => {
+                    setLabel(e.target.value);
+                    if (!catalogId) setCatalogId(slugifyCatalogId(e.target.value));
+                  }}
+                  placeholder="e.g. Coffee Culture"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                  Catalog ID
+                </label>
+                <Input
+                  value={catalogId}
+                  onChange={(e) => setCatalogId(slugifyCatalogId(e.target.value))}
+                  placeholder="coffee_culture"
+                />
+              </div>
+              {activeTab === "comfort" ? (
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                    Subtitle
+                  </label>
+                  <Input
+                    value={subtitle}
+                    onChange={(e) => setSubtitle(e.target.value)}
+                    placeholder="Short helper text for members"
+                  />
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowModal(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreate} disabled={saving}>
+                {saving ? "Saving…" : "Create"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
