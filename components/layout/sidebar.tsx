@@ -6,7 +6,9 @@ import {
   AlertTriangle,
   Home,
   LayoutGrid,
+  MapPin,
   Settings,
+  Tags,
   UserCheck,
 } from "lucide-react";
 import { cn, initials } from "@/lib/utils";
@@ -16,6 +18,8 @@ const NAV = [
   { label: "Overview", href: "/dashboard", icon: LayoutGrid },
   { label: "User Approvals", href: "/user-approvals", icon: UserCheck },
   { label: "Host Applications", href: "/host-applications", icon: Home },
+  { label: "Add Venue", href: "/venues/new", icon: MapPin },
+  { label: "Taxonomy", href: "/taxonomy", icon: Tags },
   { label: "Safety & Reports", href: "/reports", icon: AlertTriangle },
   { label: "Settings", href: "/settings", icon: Settings },
 ];

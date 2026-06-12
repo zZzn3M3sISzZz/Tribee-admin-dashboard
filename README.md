@@ -53,5 +53,7 @@ If Git was not wired at deploy time:
 | `/dashboard` | Overview metrics |
 | `/user-approvals` | Identity verification queue |
 | `/host-applications` | Host application review |
+| `/venues/new` | Onboard new partner venue |
+| `/taxonomy` | Interests, social comforts & motives |
 | `/reports` | Safety report triage |
 | `/settings` | Account & sign out |

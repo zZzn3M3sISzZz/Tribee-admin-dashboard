@@ -22,6 +22,8 @@ export const config = {
     "/dashboard/:path*",
     "/user-approvals/:path*",
     "/host-applications/:path*",
+    "/venues/:path*",
+    "/taxonomy/:path*",
     "/reports/:path*",
     "/settings/:path*",
   ],
