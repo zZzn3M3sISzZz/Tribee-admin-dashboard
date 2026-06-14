@@ -1,7 +1,11 @@
 import { withBasePath } from "./base-path";
 import type {
   ActivityItem,
+  AddEventParticipantsResponse,
+  AdminEventListItem,
+  AdminUserSearchResult,
   CatalogItem,
+  CreateAdminEventResponse,
   CreateVenueResponse,
   GrowthStats,
   HostApplication,
@@ -155,4 +159,35 @@ export const api = {
     }
     return res.json() as Promise<CreateVenueResponse>;
   },
+
+  searchAdminUsers: (query: string) => {
+    const qs = new URLSearchParams({ q: query });
+    return tribeeFetch<{ items: AdminUserSearchResult[] }>(
+      `/admin/users/search?${qs}`
+    );
+  },
+
+  listAdminEvents: (limit = 50) =>
+    tribeeFetch<{ items: AdminEventListItem[] }>(`/admin/events?limit=${limit}`),
+
+  createAdminEvent: (body: {
+    city_slug: string;
+    experience_type?: string;
+    scheduled_at: string;
+    initial_state?: "confirmed" | "pending_confirmation";
+    participant_user_ids?: string[];
+  }) =>
+    tribeeFetch<CreateAdminEventResponse>("/admin/events", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  addEventParticipants: (eventId: string, userIds: string[]) =>
+    tribeeFetch<AddEventParticipantsResponse>(
+      `/admin/events/${eventId}/participants`,
+      {
+        method: "POST",
+        body: JSON.stringify({ user_ids: userIds }),
+      }
+    ),
 };

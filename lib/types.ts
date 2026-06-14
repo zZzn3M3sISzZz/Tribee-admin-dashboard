@@ -130,3 +130,35 @@ export interface CreateVenueResponse {
   image_count: number;
   image_urls: string[];
 }
+
+export interface AdminUserSearchResult {
+  user_id: string;
+  display_name: string;
+  verification_level: string;
+  status: string;
+  avatar_url: string | null;
+  matched_by: "email" | "name" | string;
+}
+
+export interface AdminEventListItem {
+  event_id: string;
+  experience_type: string;
+  state: string;
+  scheduled_at: string;
+  participant_count: number;
+}
+
+export interface CreateAdminEventResponse {
+  event_id: string;
+  group_id: string;
+  state: string;
+  scheduled_at: string;
+  participant_count: number;
+}
+
+export interface AddEventParticipantsResponse {
+  event_id: string;
+  added: string[];
+  skipped: string[];
+  participant_count: number;
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   AlertTriangle,
+  CalendarDays,
   Home,
   LayoutGrid,
   MapPin,
@@ -18,6 +19,7 @@ const NAV = [
   { label: "Overview", href: "/dashboard", icon: LayoutGrid },
   { label: "User Approvals", href: "/user-approvals", icon: UserCheck },
   { label: "Host Applications", href: "/host-applications", icon: Home },
+  { label: "Events", href: "/events", icon: CalendarDays },
   { label: "Add Venue", href: "/venues/new", icon: MapPin },
   { label: "Taxonomy", href: "/taxonomy", icon: Tags },
   { label: "Safety & Reports", href: "/reports", icon: AlertTriangle },

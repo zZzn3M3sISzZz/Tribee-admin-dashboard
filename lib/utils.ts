@@ -14,6 +14,17 @@ export function formatDate(iso: string | null | undefined): string {
   });
 }
 
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function initials(name: string): string {
   return name
     .split(/\s+/)
