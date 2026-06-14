@@ -2,6 +2,7 @@ import { withBasePath } from "./base-path";
 import type {
   ActivityItem,
   AddEventParticipantsResponse,
+  AdminEventImageSuggestion,
   AdminEventListItem,
   AdminUserSearchResult,
   CatalogItem,
@@ -170,17 +171,45 @@ export const api = {
   listAdminEvents: (limit = 50) =>
     tribeeFetch<{ items: AdminEventListItem[] }>(`/admin/events?limit=${limit}`),
 
-  createAdminEvent: (body: {
-    city_slug: string;
-    experience_type?: string;
-    scheduled_at: string;
-    initial_state?: "confirmed" | "pending_confirmation";
-    participant_user_ids?: string[];
-  }) =>
-    tribeeFetch<CreateAdminEventResponse>("/admin/events", {
+  getAdminEventImageSuggestion: (experienceType: string, citySlug: string) => {
+    const qs = new URLSearchParams({
+      experience_type: experienceType,
+      city_slug: citySlug,
+    });
+    return tribeeFetch<AdminEventImageSuggestion>(
+      `/admin/events/image-suggestion?${qs}`
+    );
+  },
+
+  createAdminEvent: async (
+    metadata: {
+      city_slug: string;
+      experience_type?: string;
+      scheduled_at: string;
+      initial_state?: "confirmed" | "pending_confirmation";
+      participant_user_ids?: string[];
+      title?: string;
+      subtitle?: string;
+      venue_label?: string;
+      source_image_catalog_id?: string;
+    },
+    image?: File | null
+  ) => {
+    const form = new FormData();
+    form.append("metadata", JSON.stringify(metadata));
+    if (image) {
+      form.append("image", image, image.name);
+    }
+    const res = await fetch(withBasePath("/api/tribee/admin/events"), {
       method: "POST",
-      body: JSON.stringify(body),
-    }),
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? body.message ?? `Request failed (${res.status})`);
+    }
+    return res.json() as Promise<CreateAdminEventResponse>;
+  },
 
   addEventParticipants: (eventId: string, userIds: string[]) =>
     tribeeFetch<AddEventParticipantsResponse>(

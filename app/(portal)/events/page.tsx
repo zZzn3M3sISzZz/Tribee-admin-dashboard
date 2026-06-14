@@ -152,7 +152,7 @@ export default function EventsPage() {
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-surface-border text-xs uppercase tracking-wide text-text-secondary">
-                    <th className="px-8 py-4 font-semibold">Scheduled</th>
+                    <th className="px-8 py-4 font-semibold">Event</th>
                     <th className="px-4 py-4 font-semibold">Type</th>
                     <th className="px-4 py-4 font-semibold">State</th>
                     <th className="px-4 py-4 font-semibold">Participants</th>
@@ -166,7 +166,10 @@ export default function EventsPage() {
                       className="border-b border-surface-border/60 last:border-0"
                     >
                       <td className="px-8 py-4 text-brand-dark">
-                        {formatDateTime(item.scheduled_at)}
+                        <div className="font-medium">{item.title ?? item.experience_type}</div>
+                        <div className="text-xs text-text-muted">
+                          {formatDateTime(item.scheduled_at)}
+                        </div>
                       </td>
                       <td className="px-4 py-4 capitalize text-text-primary">
                         {item.experience_type}

@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, ChevronRight, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronRight,
+  ImagePlus,
+  Loader2,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserSearchPicker } from "@/components/user-search-picker";
 import { api } from "@/lib/api";
-import type { AdminUserSearchResult } from "@/lib/types";
+import { formatDateTime } from "@/lib/utils";
+import type { AdminEventImageSuggestion, AdminUserSearchResult } from "@/lib/types";
 
 const CITY_OPTIONS = [
   { slug: "mumbai", label: "Mumbai" },
@@ -52,40 +61,110 @@ function defaultScheduledAt(): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T19:00`;
 }
 
+function cityLabel(slug: string): string {
+  return CITY_OPTIONS.find((c) => c.slug === slug)?.label ?? slug;
+}
+
+function experienceLabel(value: string): string {
+  return EXPERIENCE_TYPES.find((t) => t.value === value)?.label ?? value;
+}
+
 export default function NewEventPage() {
   const router = useRouter();
+  const [step, setStep] = useState<"form" | "preview">("form");
   const [citySlug, setCitySlug] = useState("mumbai");
   const [experienceType, setExperienceType] = useState("dinner");
+  const [title, setTitle] = useState("");
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledAt);
   const [initialState, setInitialState] = useState<"confirmed" | "pending_confirmation">(
     "confirmed"
   );
   const [participants, setParticipants] = useState<AdminUserSearchResult[]>([]);
+  const [suggestion, setSuggestion] = useState<AdminEventImageSuggestion | null>(null);
+  const [customImage, setCustomImage] = useState<File | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleCreate = async () => {
+  const customPreviewUrl = useMemo(
+    () => (customImage ? URL.createObjectURL(customImage) : null),
+    [customImage]
+  );
+
+  useEffect(
+    () => () => {
+      if (customPreviewUrl) URL.revokeObjectURL(customPreviewUrl);
+    },
+    [customPreviewUrl]
+  );
+
+  const previewTitle =
+    title.trim() ||
+    suggestion?.title ||
+    `${experienceLabel(experienceType)} in ${cityLabel(citySlug)}`;
+
+  const previewImageUrl = customPreviewUrl ?? suggestion?.image_url ?? null;
+
+  const handleReview = async () => {
     if (!scheduledAt) {
       toast.error("Scheduled date and time are required");
       return;
     }
-
     const scheduled = new Date(scheduledAt);
     if (Number.isNaN(scheduled.getTime())) {
       toast.error("Invalid scheduled date");
       return;
     }
 
+    setLoadingPreview(true);
+    try {
+      const imageSuggestion = await api.getAdminEventImageSuggestion(
+        experienceType,
+        citySlug
+      );
+      setSuggestion(imageSuggestion);
+      setCustomImage(null);
+      setStep("preview");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load image preview");
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    const scheduled = new Date(scheduledAt);
+    if (Number.isNaN(scheduled.getTime())) {
+      toast.error("Invalid scheduled date");
+      return;
+    }
+
+    const usingSuggestion =
+      !customImage && suggestion?.has_image && suggestion.catalog_id;
+    if (!customImage && !usingSuggestion) {
+      toast.error("Upload an event image before creating");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const result = await api.createAdminEvent({
-        city_slug: citySlug,
-        experience_type: experienceType,
-        scheduled_at: scheduled.toISOString(),
-        initial_state: initialState,
-        participant_user_ids: participants.map((p) => p.user_id),
-      });
+      const result = await api.createAdminEvent(
+        {
+          city_slug: citySlug,
+          experience_type: experienceType,
+          scheduled_at: scheduled.toISOString(),
+          initial_state: initialState,
+          participant_user_ids: participants.map((p) => p.user_id),
+          title: title.trim() || undefined,
+          subtitle: suggestion?.subtitle,
+          venue_label: cityLabel(citySlug),
+          source_image_catalog_id: usingSuggestion
+            ? suggestion.catalog_id ?? undefined
+            : undefined,
+        },
+        customImage
+      );
       toast.success(
-        `Event created with ${result.participant_count} participant${
+        `Event "${result.title}" created with ${result.participant_count} participant${
           result.participant_count === 1 ? "" : "s"
         }`
       );
@@ -114,116 +193,251 @@ export default function NewEventPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Create Event</h1>
           <p className="mt-2 max-w-2xl text-text-muted">
-            Schedule a manual event and assign members. Search by display name or full email
-            address.
+            {step === "form"
+              ? "Fill in the details, then review a preview with the event image before publishing."
+              : "Review everything below. Change the image if needed, then create the event."}
           </p>
         </div>
 
-        <form
-          className="mx-auto max-w-3xl space-y-8"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleCreate();
-          }}
-        >
-          <section className="overflow-hidden rounded-card border border-surface-border-light bg-white/80 backdrop-blur-sm">
-            <div className="flex items-center gap-2 border-b border-surface-border bg-brand-dark/5 px-8 py-4">
-              <CalendarDays className="h-5 w-5 text-brand" />
-              <h2 className="text-lg font-semibold text-brand-dark">Event details</h2>
-            </div>
-            <div className="grid gap-6 p-8 sm:grid-cols-2">
-              <div>
-                <FieldLabel required>City</FieldLabel>
-                <select
-                  value={citySlug}
-                  onChange={(e) => setCitySlug(e.target.value)}
-                  className="flex h-12 w-full rounded-lg border border-surface-border bg-surface px-4 text-sm"
-                >
-                  {CITY_OPTIONS.map((city) => (
-                    <option key={city.slug} value={city.slug}>
-                      {city.label}
+        {step === "form" ? (
+          <form
+            className="mx-auto max-w-3xl space-y-8"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleReview();
+            }}
+          >
+            <section className="overflow-hidden rounded-card border border-surface-border-light bg-white/80 backdrop-blur-sm">
+              <div className="flex items-center gap-2 border-b border-surface-border bg-brand-dark/5 px-8 py-4">
+                <CalendarDays className="h-5 w-5 text-brand" />
+                <h2 className="text-lg font-semibold text-brand-dark">Event details</h2>
+              </div>
+              <div className="grid gap-6 p-8 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <FieldLabel>Title</FieldLabel>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder={`e.g. ${experienceLabel(experienceType)} in ${cityLabel(citySlug)}`}
+                  />
+                </div>
+                <div>
+                  <FieldLabel required>City</FieldLabel>
+                  <select
+                    value={citySlug}
+                    onChange={(e) => setCitySlug(e.target.value)}
+                    className="flex h-12 w-full rounded-lg border border-surface-border bg-surface px-4 text-sm"
+                  >
+                    {CITY_OPTIONS.map((city) => (
+                      <option key={city.slug} value={city.slug}>
+                        {city.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <FieldLabel required>Experience</FieldLabel>
+                  <select
+                    value={experienceType}
+                    onChange={(e) => setExperienceType(e.target.value)}
+                    className="flex h-12 w-full rounded-lg border border-surface-border bg-surface px-4 text-sm"
+                  >
+                    {EXPERIENCE_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <FieldLabel required>Scheduled at</FieldLabel>
+                  <Input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Initial state</FieldLabel>
+                  <select
+                    value={initialState}
+                    onChange={(e) =>
+                      setInitialState(e.target.value as "confirmed" | "pending_confirmation")
+                    }
+                    className="flex h-12 w-full rounded-lg border border-surface-border bg-surface px-4 text-sm"
+                  >
+                    <option value="confirmed">Confirmed (skip user confirmation)</option>
+                    <option value="pending_confirmation">
+                      Pending confirmation (users must confirm)
                     </option>
-                  ))}
-                </select>
+                  </select>
+                </div>
               </div>
-              <div>
-                <FieldLabel required>Experience</FieldLabel>
-                <select
-                  value={experienceType}
-                  onChange={(e) => setExperienceType(e.target.value)}
-                  className="flex h-12 w-full rounded-lg border border-surface-border bg-surface px-4 text-sm"
-                >
-                  {EXPERIENCE_TYPES.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <FieldLabel required>Scheduled at</FieldLabel>
-                <Input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                />
-              </div>
-              <div>
-                <FieldLabel>Initial state</FieldLabel>
-                <select
-                  value={initialState}
-                  onChange={(e) =>
-                    setInitialState(e.target.value as "confirmed" | "pending_confirmation")
-                  }
-                  className="flex h-12 w-full rounded-lg border border-surface-border bg-surface px-4 text-sm"
-                >
-                  <option value="confirmed">Confirmed (skip user confirmation)</option>
-                  <option value="pending_confirmation">
-                    Pending confirmation (users must confirm)
-                  </option>
-                </select>
-              </div>
-            </div>
-          </section>
+            </section>
 
-          <section className="overflow-hidden rounded-card border border-surface-border-light bg-white/80 backdrop-blur-sm">
-            <div className="border-b border-surface-border bg-brand-dark/5 px-8 py-4">
-              <h2 className="text-lg font-semibold text-brand-dark">Participants</h2>
-              <p className="mt-1 text-sm text-text-muted">
-                Optional at creation time — you can add more people later from the events list.
-              </p>
-            </div>
-            <div className="p-8">
-              <UserSearchPicker selected={participants} onChange={setParticipants} />
-            </div>
-          </section>
+            <section className="overflow-hidden rounded-card border border-surface-border-light bg-white/80 backdrop-blur-sm">
+              <div className="border-b border-surface-border bg-brand-dark/5 px-8 py-4">
+                <h2 className="text-lg font-semibold text-brand-dark">Participants</h2>
+              </div>
+              <div className="p-8">
+                <UserSearchPicker selected={participants} onChange={setParticipants} />
+              </div>
+            </section>
 
-          <div className="flex flex-col gap-4 border-t border-surface-border pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-text-muted">
-              {participants.length > 0
-                ? `${participants.length} participant${participants.length === 1 ? "" : "s"} selected`
-                : "You can create the event without participants and assign people afterward."}
-            </p>
-            <div className="flex gap-3">
+            <div className="flex justify-end gap-3 border-t border-surface-border pt-6">
               <Link
                 href="/events"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-surface-border bg-white px-4 text-sm font-semibold text-text-primary hover:bg-surface-inset"
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-surface-border bg-white px-4 text-sm font-semibold text-text-primary hover:bg-surface-inset"
               >
                 Cancel
               </Link>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? (
+              <Button type="submit" disabled={loadingPreview}>
+                {loadingPreview ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Creating…
+                    Preparing preview…
                   </>
                 ) : (
-                  "Create Event"
+                  "Review & preview"
                 )}
               </Button>
             </div>
+          </form>
+        ) : (
+          <div className="mx-auto max-w-3xl space-y-8">
+            <section className="overflow-hidden rounded-card border border-surface-border-light bg-white shadow-sm">
+              <div className="relative aspect-[16/9] bg-surface-inset">
+                {previewImageUrl ? (
+                  <Image
+                    src={previewImageUrl}
+                    alt={previewTitle}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 text-text-muted">
+                    <ImagePlus className="h-10 w-10" />
+                    <p className="text-sm">No suggested image — upload one below</p>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-4 p-8">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                    Event preview
+                  </p>
+                  <h2 className="mt-1 text-2xl font-bold text-brand-dark">{previewTitle}</h2>
+                  {suggestion?.subtitle ? (
+                    <p className="mt-1 text-sm text-text-muted">{suggestion.subtitle}</p>
+                  ) : null}
+                </div>
+                <dl className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                      When
+                    </dt>
+                    <dd className="mt-1 text-sm text-brand-dark">
+                      {formatDateTime(new Date(scheduledAt).toISOString())}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                      Location
+                    </dt>
+                    <dd className="mt-1 text-sm text-brand-dark">
+                      {cityLabel(citySlug)} · {experienceLabel(experienceType)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                      State
+                    </dt>
+                    <dd className="mt-1 text-sm capitalize text-brand-dark">
+                      {initialState.replace("_", " ")}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                      <Users className="h-3.5 w-3.5" />
+                      Participants
+                    </dt>
+                    <dd className="mt-1 text-sm text-brand-dark">
+                      {participants.length > 0
+                        ? participants.map((p) => p.display_name).join(", ")
+                        : "None yet"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </section>
+
+            <section className="rounded-card border border-surface-border-light bg-white/80 p-8">
+              <h3 className="text-sm font-semibold text-brand-dark">Event image</h3>
+              <p className="mt-1 text-sm text-text-muted">
+                {customImage
+                  ? `Using your upload: ${customImage.name}`
+                  : suggestion?.has_image
+                    ? "Using the suggested image. Upload a different file to replace it."
+                    : "Upload an image — required before you can create this event."}
+              </p>
+              <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-surface-border px-4 py-3 text-sm font-medium text-text-muted hover:border-brand hover:text-brand">
+                <ImagePlus className="h-4 w-4" />
+                {customImage ? "Choose a different image" : "Upload image from computer"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (!file.type.startsWith("image/")) {
+                      toast.error("Please choose an image file");
+                      return;
+                    }
+                    setCustomImage(file);
+                  }}
+                />
+              </label>
+            </section>
+
+            <div className="flex flex-col gap-4 border-t border-surface-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep("form")}
+                disabled={submitting}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to edit
+              </Button>
+              <div className="flex gap-3">
+                <Link
+                  href="/events"
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-surface-border bg-white px-4 text-sm font-semibold text-text-primary hover:bg-surface-inset"
+                >
+                  Cancel
+                </Link>
+                <Button
+                  type="button"
+                  disabled={
+                    submitting || (!customImage && !(suggestion?.has_image && suggestion.catalog_id))
+                  }
+                  onClick={handleCreate}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Creating…
+                    </>
+                  ) : (
+                    "Create event"
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
-        </form>
+        )}
       </main>
     </>
   );

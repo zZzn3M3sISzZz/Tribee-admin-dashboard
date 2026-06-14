@@ -143,14 +143,27 @@ export interface AdminUserSearchResult {
 export interface AdminEventListItem {
   event_id: string;
   experience_type: string;
+  title?: string | null;
+  image_url?: string | null;
   state: string;
   scheduled_at: string;
   participant_count: number;
 }
 
+export interface AdminEventImageSuggestion {
+  catalog_id: string | null;
+  title: string;
+  subtitle: string;
+  image_url: string | null;
+  has_image: boolean;
+}
+
 export interface CreateAdminEventResponse {
   event_id: string;
+  catalog_id: string;
   group_id: string;
+  title: string;
+  image_url: string | null;
   state: string;
   scheduled_at: string;
   participant_count: number;
