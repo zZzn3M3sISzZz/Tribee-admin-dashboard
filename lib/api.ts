@@ -219,4 +219,10 @@ export const api = {
         body: JSON.stringify({ user_ids: userIds }),
       }
     ),
+
+  cancelAdminEvent: (eventId: string) =>
+    tribeeFetch<{ event_id: string; state: string }>(
+      `/admin/events/${eventId}/cancel`,
+      { method: "POST" }
+    ),
 };

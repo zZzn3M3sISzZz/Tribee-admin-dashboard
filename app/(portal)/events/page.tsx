@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Loader2, Plus, UserPlus, X } from "lucide-react";
+import { CalendarDays, ChevronRight, Loader2, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,13 @@ function stateBadge(state: string) {
       </span>
     );
   }
+  if (state === "cancelled") {
+    return (
+      <span className="rounded bg-surface-inset px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
+        Cancelled
+      </span>
+    );
+  }
   return (
     <span className="rounded bg-surface-inset px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
       {state}
@@ -40,6 +47,8 @@ export default function EventsPage() {
   const [assignEventId, setAssignEventId] = useState<string | null>(null);
   const [assignUsers, setAssignUsers] = useState<AdminUserSearchResult[]>([]);
   const [assigning, setAssigning] = useState(false);
+  const [cancelEventId, setCancelEventId] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +78,16 @@ export default function EventsPage() {
   }, [items, search]);
 
   const assignEvent = items.find((item) => item.event_id === assignEventId);
+  const cancelEvent = items.find((item) => item.event_id === cancelEventId);
+
+  const canCancelEvent = (item: AdminEventListItem) => {
+    const upcoming =
+      new Date(item.scheduled_at).getTime() >= Date.now();
+    return (
+      upcoming &&
+      (item.state === "pending_confirmation" || item.state === "confirmed")
+    );
+  };
 
   const handleAssign = async () => {
     if (!assignEventId || assignUsers.length === 0) {
@@ -97,6 +116,21 @@ export default function EventsPage() {
       toast.error(e instanceof Error ? e.message : "Failed to assign participants");
     } finally {
       setAssigning(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!cancelEventId) return;
+    setCancelling(true);
+    try {
+      await api.cancelAdminEvent(cancelEventId);
+      toast.success("Event cancelled");
+      setCancelEventId(null);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to cancel event");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -177,18 +211,32 @@ export default function EventsPage() {
                       <td className="px-4 py-4">{stateBadge(item.state)}</td>
                       <td className="px-4 py-4 text-text-primary">{item.participant_count}</td>
                       <td className="px-8 py-4">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setAssignEventId(item.event_id);
-                            setAssignUsers([]);
-                          }}
-                        >
-                          <UserPlus className="h-4 w-4" />
-                          Assign people
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setAssignEventId(item.event_id);
+                              setAssignUsers([]);
+                            }}
+                          >
+                            <UserPlus className="h-4 w-4" />
+                            Assign people
+                          </Button>
+                          {canCancelEvent(item) ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => setCancelEventId(item.event_id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Cancel
+                            </Button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -247,6 +295,60 @@ export default function EventsPage() {
                   </>
                 ) : (
                   "Assign selected"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {cancelEventId && cancelEvent ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-card border border-surface-border bg-surface p-6 shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-brand-dark">Cancel event</h3>
+                <p className="mt-1 text-sm text-text-muted">
+                  {cancelEvent.title ?? cancelEvent.experience_type} on{" "}
+                  {formatDateTime(cancelEvent.scheduled_at)}
+                </p>
+                <p className="mt-3 text-sm text-text-primary">
+                  This will cancel the event for all assigned participants. This action cannot be
+                  undone.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCancelEventId(null)}
+                className="rounded-full p-1 text-text-muted hover:bg-surface-inset"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCancelEventId(null)}
+                disabled={cancelling}
+              >
+                Keep event
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                disabled={cancelling}
+                onClick={handleCancel}
+              >
+                {cancelling ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Cancelling…
+                  </>
+                ) : (
+                  "Cancel event"
                 )}
               </Button>
             </div>
