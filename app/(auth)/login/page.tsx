@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -168,7 +169,13 @@ function LoginForm() {
             </Button>
           </form>
 
-          <div className="mt-8 border-t border-surface-border/30 pt-8 text-center">
+          <div className="mt-8 space-y-4 border-t border-surface-border/30 pt-8 text-center">
+            <Link
+              href={withBasePath("/delete-account")}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-secondary hover:text-brand"
+            >
+              Delete Tribee account
+            </Link>
             <button
               type="button"
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-secondary"
@@ -180,6 +187,17 @@ function LoginForm() {
         </div>
 
         <div className="space-y-4 text-center">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary/70">
+            <Link href={withBasePath("/privacy")} className="hover:text-brand">
+              Privacy Policy
+            </Link>
+            <Link href={withBasePath("/terms")} className="hover:text-brand">
+              Terms &amp; Conditions
+            </Link>
+            <Link href={withBasePath("/delete-account")} className="hover:text-brand">
+              Delete Account
+            </Link>
+          </div>
           <div className="flex items-center justify-center gap-6 text-[11px] font-medium uppercase tracking-[0.2em] text-text-secondary/60">
             <span>
               System Status:{" "}
