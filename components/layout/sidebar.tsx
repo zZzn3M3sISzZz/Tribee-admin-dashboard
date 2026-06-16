@@ -20,7 +20,7 @@ const NAV = [
   { label: "User Approvals", href: "/user-approvals", icon: UserCheck },
   { label: "Host Applications", href: "/host-applications", icon: Home },
   { label: "Events", href: "/events", icon: CalendarDays },
-  { label: "Add Venue", href: "/venues/new", icon: MapPin },
+  { label: "Venues", href: "/venues", icon: MapPin },
   { label: "Taxonomy", href: "/taxonomy", icon: Tags },
   { label: "Safety & Reports", href: "/reports", icon: AlertTriangle },
   { label: "Settings", href: "/settings", icon: Settings },

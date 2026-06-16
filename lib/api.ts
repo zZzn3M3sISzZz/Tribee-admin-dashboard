@@ -5,6 +5,7 @@ import type {
   AdminEventImageSuggestion,
   AdminEventListItem,
   AdminUserSearchResult,
+  AdminVenueListItem,
   CatalogItem,
   CreateAdminEventResponse,
   CreateVenueResponse,
@@ -160,6 +161,11 @@ export const api = {
     }
     return res.json() as Promise<CreateVenueResponse>;
   },
+
+  listAdminVenues: (limit = 100) =>
+    tribeeFetch<{ items: AdminVenueListItem[]; total: number }>(
+      `/admin/venues?limit=${limit}`
+    ),
 
   searchAdminUsers: (query: string) => {
     const qs = new URLSearchParams({ q: query });

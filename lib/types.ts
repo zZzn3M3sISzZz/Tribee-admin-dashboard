@@ -131,6 +131,22 @@ export interface CreateVenueResponse {
   image_urls: string[];
 }
 
+export interface AdminVenueListItem {
+  venue_id: string;
+  name: string;
+  city_id: string;
+  city_slug: string | null;
+  budget_tier: string;
+  max_tables: number;
+  typical_spend_per_head_inr: number;
+  description: string | null;
+  address: string | null;
+  venue_type: string | null;
+  image_count: number;
+  primary_image_url: string | null;
+  created_at: string;
+}
+
 export interface AdminUserSearchResult {
   user_id: string;
   display_name: string;
