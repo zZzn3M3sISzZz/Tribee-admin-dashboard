@@ -226,6 +226,32 @@ export const api = {
       `/admin/venues?limit=${limit}`
     ),
 
+  getAdminVenue: (venueId: string) =>
+    tribeeFetch<AdminVenueListItem>(`/admin/venues/${venueId}`),
+
+  updateVenue: async (
+    venueId: string,
+    metadata: Record<string, unknown>,
+    images?: File[]
+  ) => {
+    const form = new FormData();
+    form.append("metadata", JSON.stringify(metadata));
+    if (images) {
+      for (const image of images) {
+        form.append("images", image, image.name);
+      }
+    }
+    const res = await fetch(withBasePath(`/api/tribee/admin/venues/${venueId}`), {
+      method: "PATCH",
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? body.message ?? `Request failed (${res.status})`);
+    }
+    return res.json() as Promise<AdminVenueListItem>;
+  },
+
   searchAdminUsers: (query: string) => {
     const qs = new URLSearchParams({ q: query });
     return tribeeFetch<{ items: AdminUserSearchResult[] }>(

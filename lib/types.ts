@@ -166,6 +166,7 @@ export interface AdminVenueListItem {
   venue_type: string | null;
   image_count: number;
   primary_image_url: string | null;
+  image_urls?: string[];
   created_at: string;
 }
 
