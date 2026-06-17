@@ -15,6 +15,8 @@ import type {
   IdentityVerificationItem,
   ModerationInsights,
   OverviewStats,
+  SafetyInboxMessage,
+  SafetyInboxThread,
   SafetyReport,
   TaxonomyKind,
 } from "./types";
@@ -80,12 +82,14 @@ export const api = {
   listSafetyReports: (params?: {
     status?: string;
     category?: string;
+    priority?: string;
     limit?: number;
     offset?: number;
   }) => {
     const qs = new URLSearchParams();
     if (params?.status) qs.set("status", params.status);
     if (params?.category) qs.set("category", params.category);
+    if (params?.priority) qs.set("priority", params.priority);
     if (params?.limit) qs.set("limit", String(params.limit));
     if (params?.offset) qs.set("offset", String(params.offset));
     const query = qs.toString();
@@ -99,6 +103,61 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ status }),
     }),
+
+  escalateSafetyReport: (
+    reportId: string,
+    body?: { ncmec_reported?: boolean; notes?: string },
+  ) =>
+    tribeeFetch(`/admin/safety-reports/${reportId}/escalate`, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
+
+  suspendUser: (
+    userId: string,
+    body?: { report_id?: string; notes?: string },
+  ) =>
+    tribeeFetch(`/admin/users/${userId}/suspend`, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
+
+  banUser: (userId: string, body?: { report_id?: string; notes?: string }) =>
+    tribeeFetch(`/admin/users/${userId}/ban`, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
+
+  listSafetyInbox: () =>
+    tribeeFetch<{ items: SafetyInboxThread[] }>("/admin/safety-inbox"),
+
+  getSafetyInboxThread: (threadId: string) =>
+    tribeeFetch<SafetyInboxThread>(`/admin/safety-inbox/${threadId}`),
+
+  listSafetyInboxMessages: (
+    threadId: string,
+    params?: { limit?: number; before?: string },
+  ) => {
+    const qs = new URLSearchParams();
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.before) qs.set("before", params.before);
+    const query = qs.toString();
+    return tribeeFetch<{ messages: SafetyInboxMessage[]; has_more: boolean }>(
+      `/admin/safety-inbox/${threadId}/messages${query ? `?${query}` : ""}`,
+    );
+  },
+
+  replySafetyInbox: (threadId: string, body: string) =>
+    tribeeFetch<SafetyInboxMessage>(`/admin/safety-inbox/${threadId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
+
+  markSafetyInboxRead: (threadId: string) =>
+    tribeeFetch(`/admin/safety-inbox/${threadId}/read`, { method: "POST" }),
+
+  exportSafetyReport: (reportId: string) =>
+    tribeeFetch<Record<string, unknown>>(`/admin/safety-reports/${reportId}/export`),
 
   listHostApplications: (params?: { limit?: number; offset?: number }) => {
     const qs = new URLSearchParams();

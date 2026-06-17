@@ -37,14 +37,36 @@ export interface IdentityVerificationDetail extends IdentityVerificationItem {
 
 export interface SafetyReport {
   id: string;
-  reported_user_id: string;
+  reported_user_id: string | null;
   reported_display_name: string;
   reporter_id: string;
   reporter_display_name: string;
   category: string;
   description: string | null;
   status: string;
+  priority: string;
+  escalated_at: string | null;
+  ncmec_reported_at: string | null;
   created_at: string;
+}
+
+export interface SafetyInboxThread {
+  thread_id: string;
+  member_id: string;
+  member_display_name: string;
+  last_message_body: string | null;
+  last_message_at: string | null;
+  unread_count: number;
+}
+
+export interface SafetyInboxMessage {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  body: string;
+  image_url: string | null;
+  created_at: string;
+  is_safety_team: boolean;
 }
 
 export interface HostApplication {

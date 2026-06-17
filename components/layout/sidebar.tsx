@@ -8,6 +8,7 @@ import {
   Home,
   LayoutGrid,
   MapPin,
+  MessageSquare,
   Settings,
   Tags,
   UserCheck,
@@ -23,6 +24,7 @@ const NAV = [
   { label: "Venues", href: "/venues", icon: MapPin },
   { label: "Taxonomy", href: "/taxonomy", icon: Tags },
   { label: "Safety & Reports", href: "/reports", icon: AlertTriangle },
+  { label: "Safety Inbox", href: "/safety-inbox", icon: MessageSquare },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

@@ -26,6 +26,7 @@ export const config = {
     "/venues/:path*",
     "/taxonomy/:path*",
     "/reports/:path*",
+    "/safety-inbox/:path*",
     "/settings/:path*",
   ],
 };

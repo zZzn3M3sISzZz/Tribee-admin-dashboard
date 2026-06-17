@@ -17,6 +17,31 @@ const STATUS_FILTERS = [
   { label: "Resolved", value: "resolved" },
 ] as const;
 
+const PRIORITY_FILTERS = [
+  { label: "All priorities", value: "" },
+  { label: "Urgent", value: "urgent" },
+  { label: "CSAM", value: "csam" },
+] as const;
+
+function PriorityBadge({ priority }: { priority: string }) {
+  const normalized = priority.toLowerCase();
+  if (normalized === "csam") {
+    return (
+      <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold uppercase text-white">
+        CSAM
+      </span>
+    );
+  }
+  if (normalized === "urgent") {
+    return (
+      <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold uppercase text-orange-800">
+        Urgent
+      </span>
+    );
+  }
+  return null;
+}
+
 function StatusBadge({ status }: { status: string }) {
   const normalized = status.toLowerCase();
   const styles =
@@ -40,6 +65,7 @@ export default function ReportsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("");
   const [insights, setInsights] = useState<ModerationInsights | null>(null);
 
   const load = useCallback(async () => {
@@ -49,6 +75,7 @@ export default function ReportsPage() {
         limit: 50,
         status: statusFilter || undefined,
         category: categoryFilter || undefined,
+        priority: priorityFilter || undefined,
       });
       setItems(res.items);
       setTotal(res.total);
@@ -57,7 +84,7 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, categoryFilter]);
+  }, [statusFilter, categoryFilter, priorityFilter]);
 
   const loadInsights = useCallback(async () => {
     try {
@@ -87,12 +114,70 @@ export default function ReportsPage() {
     }
   };
 
+  const moderateUser = async (
+    userId: string,
+    reportId: string,
+    action: "suspend" | "ban",
+  ) => {
+    const notes =
+      action === "ban"
+        ? "Banned from Safety & Moderation Hub"
+        : "Suspended from Safety & Moderation Hub";
+    try {
+      if (action === "ban") {
+        await api.banUser(userId, { report_id: reportId, notes });
+      } else {
+        await api.suspendUser(userId, { report_id: reportId, notes });
+      }
+      toast.success(`User ${action === "ban" ? "banned" : "suspended"}`);
+      load();
+      loadInsights();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Moderation action failed");
+    }
+  };
+
+  const escalateReport = async (reportId: string, ncmecReported = false) => {
+    try {
+      await api.escalateSafetyReport(reportId, {
+        ncmec_reported: ncmecReported,
+        notes: ncmecReported
+          ? "Marked as reported to NCMEC"
+          : "Escalated as CSAM priority",
+      });
+      toast.success(ncmecReported ? "Marked NCMEC reported" : "Report escalated to CSAM");
+      load();
+      loadInsights();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Escalation failed");
+    }
+  };
+
+  const exportReportBundle = async (reportId: string) => {
+    try {
+      const bundle = await api.exportSafetyReport(reportId);
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `safety-report-${reportId}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      toast.success("Export bundle downloaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed");
+    }
+  };
+
   const exportLogs = async () => {
     try {
       const res = await api.listSafetyReports({
         limit: 100,
         status: statusFilter || undefined,
         category: categoryFilter || undefined,
+        priority: priorityFilter || undefined,
       });
       downloadCsv("offscreen-safety-reports.csv", [
         [
@@ -100,6 +185,7 @@ export default function ReportsPage() {
           "reported_user",
           "reporter",
           "category",
+          "priority",
           "status",
           "description",
           "created_at",
@@ -109,6 +195,7 @@ export default function ReportsPage() {
           item.reported_display_name,
           item.reporter_display_name,
           item.category,
+          item.priority,
           item.status,
           item.description ?? "",
           item.created_at,
@@ -168,6 +255,19 @@ export default function ReportsPage() {
           </div>
         </div>
 
+        <div className="mb-6 rounded-card border border-red-200 bg-red-50/50 p-5">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-red-800">
+            CSAM response playbook
+          </h2>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-red-900">
+            <li>Escalate report to CSAM priority — auto-suspends reported user and restricts linked chat images.</li>
+            <li>Export NCMEC bundle (JSON) from the report actions column.</li>
+            <li>File with NCMEC CyberTipline, then mark NCMEC reported.</li>
+            <li>Coordinate with childsafety@offscreen.app; preserve evidence via admin image access only.</li>
+            <li>Resolve report after law-enforcement handoff and account actions are complete.</li>
+          </ol>
+        </div>
+
         <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
           <div className="overflow-hidden rounded-card border border-surface-border bg-white">
             <div className="flex flex-wrap items-center gap-3 border-b border-surface-border px-6 py-4 text-sm">
@@ -220,6 +320,23 @@ export default function ReportsPage() {
                   ))}
                 </>
               ) : null}
+              <span className="font-semibold uppercase tracking-wider text-text-secondary">
+                Priority:
+              </span>
+              {PRIORITY_FILTERS.map((filter) => (
+                <button
+                  key={filter.label}
+                  type="button"
+                  onClick={() => setPriorityFilter(filter.value)}
+                  className={`rounded-full px-3 py-1 ${
+                    priorityFilter === filter.value
+                      ? "bg-brand-tint text-brand"
+                      : "bg-surface-inset text-text-muted"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
             </div>
 
             <table className="w-full text-left text-sm">
@@ -228,6 +345,7 @@ export default function ReportsPage() {
                   <th className="px-6 py-4">Reported User</th>
                   <th className="px-6 py-4">Reporter</th>
                   <th className="px-6 py-4">Reason</th>
+                  <th className="px-6 py-4">Priority</th>
                   <th className="px-6 py-4">Date</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Actions</th>
@@ -236,13 +354,13 @@ export default function ReportsPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center">
+                    <td colSpan={7} className="px-6 py-16 text-center">
                       <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand" />
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center text-text-secondary">
+                    <td colSpan={7} className="px-6 py-16 text-center text-text-secondary">
                       No safety reports found.
                     </td>
                   </tr>
@@ -250,7 +368,9 @@ export default function ReportsPage() {
                   filtered.map((item) => (
                     <tr
                       key={item.id}
-                      className="border-b border-surface-border last:border-0 hover:bg-surface-inset/30"
+                      className={`border-b border-surface-border last:border-0 hover:bg-surface-inset/30 ${
+                        item.priority === "csam" ? "bg-red-50/60" : ""
+                      }`}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -264,6 +384,9 @@ export default function ReportsPage() {
                         @{item.reporter_display_name.replace(/\s+/g, "_")}
                       </td>
                       <td className="px-6 py-4 text-text-secondary">{item.category}</td>
+                      <td className="px-6 py-4">
+                        <PriorityBadge priority={item.priority} />
+                      </td>
                       <td className="px-6 py-4 text-text-secondary">
                         {formatDate(item.created_at)}
                       </td>
@@ -271,23 +394,72 @@ export default function ReportsPage() {
                         <StatusBadge status={item.status} />
                       </td>
                       <td className="px-6 py-4">
-                        {item.status === "open" && (
+                        <div className="flex flex-wrap gap-2">
+                          {item.status === "open" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateStatus(item.id, "investigating")}
+                            >
+                              Investigate
+                            </Button>
+                          )}
+                          {item.status === "investigating" && (
+                            <Button
+                              size="sm"
+                              onClick={() => updateStatus(item.id, "resolved")}
+                            >
+                              Resolve
+                            </Button>
+                          )}
+                          {item.priority !== "csam" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => escalateReport(item.id)}
+                            >
+                              Escalate CSAM
+                            </Button>
+                          )}
+                          {item.priority === "csam" && !item.ncmec_reported_at && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => escalateReport(item.id, true)}
+                            >
+                              Mark NCMEC
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateStatus(item.id, "investigating")}
+                            onClick={() => exportReportBundle(item.id)}
                           >
-                            Investigate
+                            Export
                           </Button>
-                        )}
-                        {item.status === "investigating" && (
-                          <Button
-                            size="sm"
-                            onClick={() => updateStatus(item.id, "resolved")}
-                          >
-                            Resolve
-                          </Button>
-                        )}
+                          {item.reported_user_id ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  moderateUser(item.reported_user_id!, item.id, "suspend")
+                                }
+                              >
+                                Suspend
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  moderateUser(item.reported_user_id!, item.id, "ban")
+                                }
+                              >
+                                Ban
+                              </Button>
+                            </>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))

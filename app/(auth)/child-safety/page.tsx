@@ -96,8 +96,8 @@ export default function ChildSafetyStandardsPage() {
             content to our safety team.
           </li>
           <li>
-            <strong>Secure chat with Tribee Safety</strong> — direct in-app channel to our trust
-            and safety team for urgent or sensitive reports.
+            <strong>Live chat with Tribee Safety</strong> — in-app emergency support channel
+            connected to our ops safety inbox for urgent or sensitive reports.
           </li>
           <li>
             <strong>Help &amp; Support</strong> — in-app resources for trust, verification, and
