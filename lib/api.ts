@@ -275,11 +275,16 @@ export const api = {
     );
   },
 
-  getAdminEventImageSuggestion: (experienceType: string, citySlug: string) => {
+  getAdminEventImageSuggestion: (
+    experienceType: string,
+    citySlug: string,
+    venueId?: string
+  ) => {
     const qs = new URLSearchParams({
       experience_type: experienceType,
       city_slug: citySlug,
     });
+    if (venueId) qs.set("venue_id", venueId);
     return tribeeFetch<AdminEventImageSuggestion>(
       `/admin/events/image-suggestion?${qs}`
     );
@@ -295,6 +300,7 @@ export const api = {
       title?: string;
       subtitle?: string;
       venue_label?: string;
+      venue_id?: string;
       source_image_catalog_id?: string;
     },
     image?: File | null

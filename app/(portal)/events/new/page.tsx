@@ -19,7 +19,11 @@ import { Input } from "@/components/ui/input";
 import { UserSearchPicker } from "@/components/user-search-picker";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
-import type { AdminEventImageSuggestion, AdminUserSearchResult } from "@/lib/types";
+import type {
+  AdminEventImageSuggestion,
+  AdminUserSearchResult,
+  AdminVenueListItem,
+} from "@/lib/types";
 
 const CITY_OPTIONS = [
   { slug: "mumbai", label: "Mumbai" },
@@ -69,6 +73,15 @@ function experienceLabel(value: string): string {
   return EXPERIENCE_TYPES.find((t) => t.value === value)?.label ?? value;
 }
 
+function venueImageUrl(primaryImageUrl: string | null | undefined): string | null {
+  if (!primaryImageUrl) return null;
+  if (primaryImageUrl.startsWith("http")) return primaryImageUrl;
+  const base = (
+    process.env.NEXT_PUBLIC_TRIBEE_API_URL ?? "https://api.enshaproductions.com"
+  ).replace(/\/$/, "");
+  return `${base}${primaryImageUrl}`;
+}
+
 export default function NewEventPage() {
   const router = useRouter();
   const [step, setStep] = useState<"form" | "preview">("form");
@@ -80,6 +93,9 @@ export default function NewEventPage() {
     "confirmed"
   );
   const [participants, setParticipants] = useState<AdminUserSearchResult[]>([]);
+  const [venues, setVenues] = useState<AdminVenueListItem[]>([]);
+  const [loadingVenues, setLoadingVenues] = useState(true);
+  const [venueId, setVenueId] = useState("");
   const [suggestion, setSuggestion] = useState<AdminEventImageSuggestion | null>(null);
   const [customImage, setCustomImage] = useState<File | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -97,12 +113,62 @@ export default function NewEventPage() {
     [customPreviewUrl]
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingVenues(true);
+      try {
+        const res = await api.listAdminVenues(200);
+        if (!cancelled) setVenues(res.items);
+      } catch (e) {
+        if (!cancelled) {
+          toast.error(e instanceof Error ? e.message : "Failed to load venues");
+        }
+      } finally {
+        if (!cancelled) setLoadingVenues(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const cityVenues = useMemo(
+    () => venues.filter((venue) => (venue.city_slug ?? venue.city_id) === citySlug),
+    [venues, citySlug]
+  );
+
+  const selectedVenue = useMemo(
+    () => cityVenues.find((venue) => venue.venue_id === venueId) ?? null,
+    [cityVenues, venueId]
+  );
+
+  useEffect(() => {
+    if (venueId && !cityVenues.some((venue) => venue.venue_id === venueId)) {
+      setVenueId("");
+    }
+  }, [cityVenues, venueId]);
+
+  const selectedVenueImageUrl = venueImageUrl(selectedVenue?.primary_image_url);
+
+  const usingVenueImage =
+    Boolean(venueId && selectedVenue && selectedVenue.image_count > 0);
+
+  const usingCatalogSuggestion =
+    !customImage &&
+    !usingVenueImage &&
+    Boolean(suggestion?.has_image && suggestion.catalog_id);
+
+  const canCreate =
+    Boolean(customImage) || usingVenueImage || usingCatalogSuggestion;
+
   const previewTitle =
     title.trim() ||
     suggestion?.title ||
     `${experienceLabel(experienceType)} in ${cityLabel(citySlug)}`;
 
-  const previewImageUrl = customPreviewUrl ?? suggestion?.image_url ?? null;
+  const previewImageUrl =
+    customPreviewUrl ?? selectedVenueImageUrl ?? suggestion?.image_url ?? null;
 
   const handleReview = async () => {
     if (!scheduledAt) {
@@ -119,7 +185,8 @@ export default function NewEventPage() {
     try {
       const imageSuggestion = await api.getAdminEventImageSuggestion(
         experienceType,
-        citySlug
+        citySlug,
+        venueId || undefined
       );
       setSuggestion(imageSuggestion);
       setCustomImage(null);
@@ -138,10 +205,12 @@ export default function NewEventPage() {
       return;
     }
 
-    const usingSuggestion =
-      !customImage && suggestion?.has_image && suggestion.catalog_id;
-    if (!customImage && !usingSuggestion) {
-      toast.error("Upload an event image before creating");
+    if (!canCreate) {
+      toast.error(
+        venueId
+          ? "Upload an event image or choose a venue that has photos"
+          : "Upload an event image or use a suggested one"
+      );
       return;
     }
 
@@ -156,9 +225,9 @@ export default function NewEventPage() {
           participant_user_ids: participants.map((p) => p.user_id),
           title: title.trim() || undefined,
           subtitle: suggestion?.subtitle,
-          venue_label: cityLabel(citySlug),
-          source_image_catalog_id: usingSuggestion
-            ? suggestion.catalog_id ?? undefined
+          venue_id: venueId || undefined,
+          source_image_catalog_id: usingCatalogSuggestion
+            ? suggestion?.catalog_id ?? undefined
             : undefined,
         },
         customImage
@@ -272,6 +341,33 @@ export default function NewEventPage() {
                     </option>
                   </select>
                 </div>
+                <div className="sm:col-span-2">
+                  <FieldLabel>Partner venue</FieldLabel>
+                  <select
+                    value={venueId}
+                    onChange={(e) => setVenueId(e.target.value)}
+                    disabled={loadingVenues}
+                    className="flex h-12 w-full rounded-lg border border-surface-border bg-surface px-4 text-sm"
+                  >
+                    <option value="">
+                      {loadingVenues
+                        ? "Loading venues…"
+                        : cityVenues.length > 0
+                          ? "No venue selected"
+                          : "No venues in this city yet"}
+                    </option>
+                    {cityVenues.map((venue) => (
+                      <option key={venue.venue_id} value={venue.venue_id}>
+                        {venue.name}
+                        {venue.address ? ` — ${venue.address}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-text-muted">
+                    Optional. Links the event to a partner venue and shows the venue name in the
+                    app. Without a venue, the city name is used as the location label.
+                  </p>
+                </div>
               </div>
             </section>
 
@@ -318,7 +414,11 @@ export default function NewEventPage() {
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-3 text-text-muted">
                     <ImagePlus className="h-10 w-10" />
-                    <p className="text-sm">No suggested image — upload one below</p>
+                    <p className="text-sm">
+                      {venueId
+                        ? "No venue photo available — upload an image below"
+                        : "No suggested image — upload one below"}
+                    </p>
                   </div>
                 )}
               </div>
@@ -346,7 +446,9 @@ export default function NewEventPage() {
                       Location
                     </dt>
                     <dd className="mt-1 text-sm text-brand-dark">
-                      {cityLabel(citySlug)} · {experienceLabel(experienceType)}
+                      {selectedVenue
+                        ? `${selectedVenue.name}${selectedVenue.address ? ` · ${selectedVenue.address}` : ""}`
+                        : `${cityLabel(citySlug)} · ${experienceLabel(experienceType)}`}
                     </dd>
                   </div>
                   <div>
@@ -377,9 +479,13 @@ export default function NewEventPage() {
               <p className="mt-1 text-sm text-text-muted">
                 {customImage
                   ? `Using your upload: ${customImage.name}`
-                  : suggestion?.has_image
-                    ? "Using the suggested image. Upload a different file to replace it."
-                    : "Upload an image — required before you can create this event."}
+                  : usingVenueImage
+                    ? `Using ${selectedVenue?.name}'s venue photo. Upload a different file to replace it.`
+                    : suggestion?.has_image
+                      ? "Using the suggested image. Upload a different file to replace it."
+                      : venueId
+                        ? "This venue has no photos — upload an event image to continue."
+                        : "Upload an image, or assign a venue with photos."}
               </p>
               <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-surface-border px-4 py-3 text-sm font-medium text-text-muted hover:border-brand hover:text-brand">
                 <ImagePlus className="h-4 w-4" />
@@ -420,9 +526,7 @@ export default function NewEventPage() {
                 </Link>
                 <Button
                   type="button"
-                  disabled={
-                    submitting || (!customImage && !(suggestion?.has_image && suggestion.catalog_id))
-                  }
+                  disabled={submitting || !canCreate}
                   onClick={handleCreate}
                 >
                   {submitting ? (
