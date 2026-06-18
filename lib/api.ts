@@ -260,8 +260,20 @@ export const api = {
     );
   },
 
-  listAdminEvents: (limit = 50) =>
-    tribeeFetch<{ items: AdminEventListItem[] }>(`/admin/events?limit=${limit}`),
+  listAdminEvents: (params?: {
+    limit?: number;
+    source?: "all" | "manual" | "auto_matched";
+    week?: string;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.source) qs.set("source", params.source);
+    if (params?.week) qs.set("week", params.week);
+    const query = qs.toString();
+    return tribeeFetch<{ items: AdminEventListItem[] }>(
+      `/admin/events${query ? `?${query}` : ""}`
+    );
+  },
 
   getAdminEventImageSuggestion: (experienceType: string, citySlug: string) => {
     const qs = new URLSearchParams({

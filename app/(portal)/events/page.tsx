@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Loader2, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { CalendarDays, ChevronRight, Loader2, Plus, Sparkles, Trash2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { UserSearchPicker } from "@/components/user-search-picker";
 import { api } from "@/lib/api";
-import { formatDateTime } from "@/lib/utils";
+import { currentWeekMonday, formatDateTime, formatWeekLabel } from "@/lib/utils";
 import type { AdminEventListItem, AdminUserSearchResult } from "@/lib/types";
 
 function stateBadge(state: string) {
@@ -40,8 +40,93 @@ function stateBadge(state: string) {
   );
 }
 
+function EventTable({
+  items,
+  emptyMessage,
+  onAssign,
+  onCancel,
+  canCancelEvent,
+  showCity = false,
+}: {
+  items: AdminEventListItem[];
+  emptyMessage: string;
+  onAssign: (eventId: string) => void;
+  onCancel: (eventId: string) => void;
+  canCancelEvent: (item: AdminEventListItem) => boolean;
+  showCity?: boolean;
+}) {
+  if (items.length === 0) {
+    return <div className="px-8 py-16 text-center text-text-muted">{emptyMessage}</div>;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[720px] text-left text-sm">
+        <thead>
+          <tr className="border-b border-surface-border text-xs uppercase tracking-wide text-text-secondary">
+            <th className="px-8 py-4 font-semibold">Event</th>
+            {showCity ? <th className="px-4 py-4 font-semibold">City</th> : null}
+            <th className="px-4 py-4 font-semibold">Type</th>
+            <th className="px-4 py-4 font-semibold">State</th>
+            <th className="px-4 py-4 font-semibold">Participants</th>
+            <th className="px-8 py-4 font-semibold">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr
+              key={item.event_id}
+              className="border-b border-surface-border/60 last:border-0"
+            >
+              <td className="px-8 py-4 text-brand-dark">
+                <div className="font-medium">{item.title ?? item.experience_type}</div>
+                <div className="text-xs text-text-muted">{formatDateTime(item.scheduled_at)}</div>
+              </td>
+              {showCity ? (
+                <td className="px-4 py-4 capitalize text-text-primary">
+                  {item.city_id ?? "—"}
+                </td>
+              ) : null}
+              <td className="px-4 py-4 capitalize text-text-primary">{item.experience_type}</td>
+              <td className="px-4 py-4">{stateBadge(item.state)}</td>
+              <td className="px-4 py-4 text-text-primary">{item.participant_count}</td>
+              <td className="px-8 py-4">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAssign(item.event_id)}
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Assign people
+                  </Button>
+                  {canCancelEvent(item) ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700"
+                      onClick={() => onCancel(item.event_id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Cancel
+                    </Button>
+                  ) : null}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function EventsPage() {
-  const [items, setItems] = useState<AdminEventListItem[]>([]);
+  const weekMonday = currentWeekMonday();
+  const [autoMatched, setAutoMatched] = useState<AdminEventListItem[]>([]);
+  const [manualEvents, setManualEvents] = useState<AdminEventListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [assignEventId, setAssignEventId] = useState<string | null>(null);
@@ -53,36 +138,61 @@ export default function EventsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.listAdminEvents(100);
-      setItems(res.items);
+      const [autoRes, manualRes] = await Promise.all([
+        api.listAdminEvents({
+          source: "auto_matched",
+          week: weekMonday,
+          limit: 100,
+        }),
+        api.listAdminEvents({ source: "manual", limit: 100 }),
+      ]);
+      setAutoMatched(autoRes.items);
+      setManualEvents(manualRes.items);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load events");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [weekMonday]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    if (!q) return items;
-    return items.filter(
-      (item) =>
-        item.experience_type.toLowerCase().includes(q) ||
-        item.state.toLowerCase().includes(q) ||
-        item.event_id.toLowerCase().includes(q)
-    );
-  }, [items, search]);
+  const filterItems = useCallback(
+    (items: AdminEventListItem[]) => {
+      const q = search.toLowerCase();
+      if (!q) return items;
+      return items.filter(
+        (item) =>
+          item.experience_type.toLowerCase().includes(q) ||
+          item.state.toLowerCase().includes(q) ||
+          item.event_id.toLowerCase().includes(q) ||
+          (item.city_id?.toLowerCase().includes(q) ?? false) ||
+          (item.title?.toLowerCase().includes(q) ?? false)
+      );
+    },
+    [search]
+  );
 
-  const assignEvent = items.find((item) => item.event_id === assignEventId);
-  const cancelEvent = items.find((item) => item.event_id === cancelEventId);
+  const filteredAutoMatched = useMemo(
+    () => filterItems(autoMatched),
+    [autoMatched, filterItems]
+  );
+  const filteredManual = useMemo(
+    () => filterItems(manualEvents),
+    [manualEvents, filterItems]
+  );
+
+  const allItems = useMemo(
+    () => [...autoMatched, ...manualEvents],
+    [autoMatched, manualEvents]
+  );
+  const assignEvent = allItems.find((item) => item.event_id === assignEventId);
+  const cancelEvent = allItems.find((item) => item.event_id === cancelEventId);
 
   const canCancelEvent = (item: AdminEventListItem) => {
-    const upcoming =
-      new Date(item.scheduled_at).getTime() >= Date.now();
+    const upcoming = new Date(item.scheduled_at).getTime() >= Date.now();
     return (
       upcoming &&
       (item.state === "pending_confirmation" || item.state === "confirmed")
@@ -137,7 +247,7 @@ export default function EventsPage() {
   return (
     <>
       <Header
-        placeholder="Search events by type, state, or ID…"
+        placeholder="Search events by type, city, state, or ID…"
         value={search}
         onChange={setSearch}
       />
@@ -152,7 +262,7 @@ export default function EventsPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Events</h1>
             <p className="mt-2 max-w-2xl text-text-muted">
-              Manually create dinners and assign members by searching their name or email.
+              Review weekly auto-matched plans and manually created events.
             </p>
           </div>
           <Link
@@ -164,87 +274,78 @@ export default function EventsPage() {
           </Link>
         </div>
 
-        <section className="overflow-hidden rounded-card border border-surface-border-light bg-white/80 backdrop-blur-sm">
-          <div className="flex items-center gap-2 border-b border-surface-border bg-brand-dark/5 px-8 py-4">
-            <CalendarDays className="h-5 w-5 text-brand" />
-            <h2 className="text-lg font-semibold text-brand-dark">Recent events</h2>
-          </div>
+        <div className="space-y-8">
+          <section className="overflow-hidden rounded-card border border-surface-border-light bg-white/80 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-4 border-b border-surface-border bg-brand-dark/5 px-8 py-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-brand" />
+                <div>
+                  <h2 className="text-lg font-semibold text-brand-dark">
+                    Automatically matched schedules
+                  </h2>
+                  <p className="text-xs text-text-muted">
+                    Week of {formatWeekLabel(weekMonday)} · created by the matching scheduler
+                  </p>
+                </div>
+              </div>
+              <span className="rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand">
+                {autoMatched.length} this week
+              </span>
+            </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center gap-2 px-8 py-16 text-text-muted">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Loading events…
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 px-8 py-16 text-text-muted">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Loading auto-matched events…
+              </div>
+            ) : (
+              <EventTable
+                items={filteredAutoMatched}
+                emptyMessage={
+                  autoMatched.length === 0
+                    ? "No auto-matched schedules for this week yet. Run the matching scheduler from Settings when members have opted in."
+                    : "No auto-matched events match your search."
+                }
+                onAssign={(id) => {
+                  setAssignEventId(id);
+                  setAssignUsers([]);
+                }}
+                onCancel={setCancelEventId}
+                canCancelEvent={canCancelEvent}
+                showCity
+              />
+            )}
+          </section>
+
+          <section className="overflow-hidden rounded-card border border-surface-border-light bg-white/80 backdrop-blur-sm">
+            <div className="flex items-center gap-2 border-b border-surface-border bg-brand-dark/5 px-8 py-4">
+              <CalendarDays className="h-5 w-5 text-brand" />
+              <h2 className="text-lg font-semibold text-brand-dark">Manual events</h2>
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="px-8 py-16 text-center text-text-muted">
-              {items.length === 0
-                ? "No events yet. Create one to get started."
-                : "No events match your search."}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-surface-border text-xs uppercase tracking-wide text-text-secondary">
-                    <th className="px-8 py-4 font-semibold">Event</th>
-                    <th className="px-4 py-4 font-semibold">Type</th>
-                    <th className="px-4 py-4 font-semibold">State</th>
-                    <th className="px-4 py-4 font-semibold">Participants</th>
-                    <th className="px-8 py-4 font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((item) => (
-                    <tr
-                      key={item.event_id}
-                      className="border-b border-surface-border/60 last:border-0"
-                    >
-                      <td className="px-8 py-4 text-brand-dark">
-                        <div className="font-medium">{item.title ?? item.experience_type}</div>
-                        <div className="text-xs text-text-muted">
-                          {formatDateTime(item.scheduled_at)}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 capitalize text-text-primary">
-                        {item.experience_type}
-                      </td>
-                      <td className="px-4 py-4">{stateBadge(item.state)}</td>
-                      <td className="px-4 py-4 text-text-primary">{item.participant_count}</td>
-                      <td className="px-8 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setAssignEventId(item.event_id);
-                              setAssignUsers([]);
-                            }}
-                          >
-                            <UserPlus className="h-4 w-4" />
-                            Assign people
-                          </Button>
-                          {canCancelEvent(item) ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700"
-                              onClick={() => setCancelEventId(item.event_id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Cancel
-                            </Button>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 px-8 py-16 text-text-muted">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Loading manual events…
+              </div>
+            ) : (
+              <EventTable
+                items={filteredManual}
+                emptyMessage={
+                  manualEvents.length === 0
+                    ? "No manual events yet. Create one to get started."
+                    : "No manual events match your search."
+                }
+                onAssign={(id) => {
+                  setAssignEventId(id);
+                  setAssignUsers([]);
+                }}
+                onCancel={setCancelEventId}
+                canCancelEvent={canCancelEvent}
+              />
+            )}
+          </section>
+        </div>
       </main>
 
       {assignEventId && assignEvent ? (

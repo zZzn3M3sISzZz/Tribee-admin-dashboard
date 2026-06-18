@@ -187,6 +187,9 @@ export interface AdminEventListItem {
   state: string;
   scheduled_at: string;
   participant_count: number;
+  source?: "manual" | "auto_matched" | string;
+  matching_week?: string | null;
+  city_id?: string | null;
 }
 
 export interface AdminEventImageSuggestion {
