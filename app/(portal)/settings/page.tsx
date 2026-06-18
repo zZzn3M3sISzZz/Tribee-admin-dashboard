@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 import { withBasePath } from "@/lib/base-path";
-import type { MeResponse } from "@/lib/types";
+import type { MeResponse, WeeklyMatchingSchedulerStatus } from "@/lib/types";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<MeResponse | null>(null);
+  const [scheduler, setScheduler] = useState<WeeklyMatchingSchedulerStatus | null>(null);
+  const [schedulerLoading, setSchedulerLoading] = useState(true);
+  const [schedulerBusy, setSchedulerBusy] = useState(false);
 
   useEffect(() => {
     fetch(withBasePath("/api/auth/session"))
@@ -16,9 +21,55 @@ export default function SettingsPage() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    setSchedulerLoading(true);
+    api
+      .getWeeklyMatchingScheduler()
+      .then(setScheduler)
+      .catch((err: Error) => toast.error(err.message))
+      .finally(() => setSchedulerLoading(false));
+  }, []);
+
   const signOut = async () => {
     await fetch(withBasePath("/api/auth/logout"), { method: "POST" });
     window.location.href = withBasePath("/login");
+  };
+
+  const toggleScheduler = async () => {
+    if (!scheduler) return;
+    setSchedulerBusy(true);
+    try {
+      const next = await api.setWeeklyMatchingScheduler(!scheduler.enabled);
+      setScheduler(next);
+      toast.success(
+        next.enabled
+          ? "Automatic weekly matching is on."
+          : "Automatic weekly matching is off."
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update scheduler");
+    } finally {
+      setSchedulerBusy(false);
+    }
+  };
+
+  const runSchedulerNow = async () => {
+    if (
+      !window.confirm(
+        "Run the weekly matching scheduler now for the current week? This queues matching for all opted-in cities."
+      )
+    ) {
+      return;
+    }
+    setSchedulerBusy(true);
+    try {
+      const result = await api.triggerWeeklyMatchingScheduler();
+      toast.success(`Matching queued for week of ${result.week}.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not trigger matching");
+    } finally {
+      setSchedulerBusy(false);
+    }
   };
 
   return (
@@ -29,6 +80,59 @@ export default function SettingsPage() {
         <p className="mt-2 text-text-secondary">Manage your admin console preferences.</p>
 
         <div className="mt-8 max-w-xl space-y-6">
+          <section className="rounded-card border border-surface-border bg-white p-6">
+            <h2 className="font-semibold text-brand-dark">Weekly matching scheduler</h2>
+            <p className="mt-2 text-sm text-text-secondary">
+              Control the automatic Monday run that matches opted-in members into weekly plans.
+              Manual runs still work when automatic scheduling is off.
+            </p>
+
+            {schedulerLoading ? (
+              <p className="mt-4 text-sm text-text-secondary">Loading scheduler status…</p>
+            ) : scheduler ? (
+              <div className="mt-4 space-y-4">
+                <div className="flex items-center justify-between rounded-lg border border-surface-border bg-surface-inset px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-brand-dark">
+                      Automatic schedule: {scheduler.enabled ? "On" : "Off"}
+                    </p>
+                    <p className="mt-1 text-xs text-text-secondary">
+                      {scheduler.schedule_label}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      scheduler.enabled
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {scheduler.enabled ? "Enabled" : "Paused"}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    variant={scheduler.enabled ? "outline" : "primary"}
+                    disabled={schedulerBusy}
+                    onClick={toggleScheduler}
+                  >
+                    {scheduler.enabled ? "Turn off automatic schedule" : "Turn on automatic schedule"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={schedulerBusy}
+                    onClick={runSchedulerNow}
+                  >
+                    Run matching now
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-text-secondary">Scheduler status unavailable.</p>
+            )}
+          </section>
+
           <section className="rounded-card border border-surface-border bg-white p-6">
             <h2 className="font-semibold text-brand-dark">Account</h2>
             <dl className="mt-4 space-y-3 text-sm">

@@ -19,6 +19,7 @@ import type {
   SafetyInboxThread,
   SafetyReport,
   TaxonomyKind,
+  WeeklyMatchingSchedulerStatus,
 } from "./types";
 
 async function tribeeFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -316,4 +317,18 @@ export const api = {
       `/admin/events/${eventId}/cancel`,
       { method: "POST" }
     ),
+
+  getWeeklyMatchingScheduler: () =>
+    tribeeFetch<WeeklyMatchingSchedulerStatus>("/admin/matching/scheduler"),
+
+  setWeeklyMatchingScheduler: (enabled: boolean) =>
+    tribeeFetch<WeeklyMatchingSchedulerStatus>("/admin/matching/scheduler", {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
+    }),
+
+  triggerWeeklyMatchingScheduler: () =>
+    tribeeFetch<{ status: string; week: string }>("/admin/matching/scheduler/run", {
+      method: "POST",
+    }),
 };

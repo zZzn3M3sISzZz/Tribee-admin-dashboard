@@ -214,3 +214,9 @@ export interface AddEventParticipantsResponse {
   skipped: string[];
   participant_count: number;
 }
+
+export interface WeeklyMatchingSchedulerStatus {
+  enabled: boolean;
+  schedule_label: string;
+  updated_at?: string | null;
+}
