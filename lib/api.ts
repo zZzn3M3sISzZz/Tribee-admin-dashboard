@@ -2,12 +2,14 @@ import { withBasePath } from "./base-path";
 import type {
   ActivityItem,
   AddEventParticipantsResponse,
+  AdminEventDetail,
   AdminEventImageSuggestion,
   AdminEventListItem,
   AdminUserSearchResult,
   AdminVenueListItem,
   CatalogItem,
   CreateAdminEventResponse,
+  CreateVenuePublicProgramResponse,
   CreateVenueResponse,
   GrowthStats,
   HostApplication,
@@ -262,7 +264,7 @@ export const api = {
 
   listAdminEvents: (params?: {
     limit?: number;
-    source?: "all" | "manual" | "auto_matched";
+    source?: "all" | "manual" | "auto_matched" | "venue_public";
     week?: string;
   }) => {
     const qs = new URLSearchParams();
@@ -274,6 +276,25 @@ export const api = {
       `/admin/events${query ? `?${query}` : ""}`
     );
   },
+
+  getAdminEvent: (eventId: string) =>
+    tribeeFetch<AdminEventDetail>(`/admin/events/${eventId}`),
+
+  updateAdminEvent: (
+    eventId: string,
+    body: {
+      scheduled_at?: string;
+      title?: string;
+      subtitle?: string;
+      capacity?: number;
+      venue_id?: string | null;
+      venue_label?: string;
+    }
+  ) =>
+    tribeeFetch<AdminEventDetail>(`/admin/events/${eventId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 
   getAdminEventImageSuggestion: (
     experienceType: string,
@@ -319,6 +340,39 @@ export const api = {
       throw new Error(body.error ?? body.message ?? `Request failed (${res.status})`);
     }
     return res.json() as Promise<CreateAdminEventResponse>;
+  },
+
+  createVenuePublicProgram: async (
+    metadata: {
+      venue_id: string;
+      city_slug: string;
+      experience_type?: string;
+      title?: string;
+      subtitle?: string;
+      schedule_kind: "single" | "recurring";
+      weekdays?: number[];
+      time_local?: string;
+      series_start_date?: string;
+      series_end_date?: string;
+      scheduled_at?: string;
+      capacity?: number;
+    },
+    image?: File | null
+  ) => {
+    const form = new FormData();
+    form.append("metadata", JSON.stringify(metadata));
+    if (image) {
+      form.append("image", image, image.name);
+    }
+    const res = await fetch(withBasePath("/api/tribee/admin/venue-events"), {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? body.message ?? `Request failed (${res.status})`);
+    }
+    return res.json() as Promise<CreateVenuePublicProgramResponse>;
   },
 
   addEventParticipants: (eventId: string, userIds: string[]) =>

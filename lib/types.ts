@@ -187,9 +187,27 @@ export interface AdminEventListItem {
   state: string;
   scheduled_at: string;
   participant_count: number;
-  source?: "manual" | "auto_matched" | string;
+  source?: "manual" | "auto_matched" | "venue_public" | string;
   matching_week?: string | null;
   city_id?: string | null;
+}
+
+export interface AdminEventDetail {
+  event_id: string;
+  catalog_id?: string | null;
+  experience_type: string;
+  title?: string | null;
+  subtitle?: string | null;
+  state: string;
+  scheduled_at: string;
+  capacity?: number | null;
+  venue_id?: string | null;
+  venue_label?: string | null;
+  city_slug?: string | null;
+  source: string;
+  is_venue_public: boolean;
+  series_id?: string | null;
+  participant_count: number;
 }
 
 export interface AdminEventImageSuggestion {
@@ -209,6 +227,14 @@ export interface CreateAdminEventResponse {
   state: string;
   scheduled_at: string;
   participant_count: number;
+}
+
+export interface CreateVenuePublicProgramResponse {
+  series_id: string;
+  schedule_kind: "single" | "recurring" | string;
+  occurrence_count: number;
+  first_scheduled_at: string;
+  catalog_ids: string[];
 }
 
 export interface AddEventParticipantsResponse {

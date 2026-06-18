@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Loader2, Plus, Sparkles, Trash2, UserPlus, X } from "lucide-react";
+import { CalendarDays, ChevronRight, Loader2, MapPin, Pencil, Plus, Sparkles, Trash2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ function EventTable({
   onAssign,
   onCancel,
   canCancelEvent,
+  canEditEvent = (item) => item.state !== "cancelled",
   showCity = false,
 }: {
   items: AdminEventListItem[];
@@ -53,6 +54,7 @@ function EventTable({
   onAssign: (eventId: string) => void;
   onCancel: (eventId: string) => void;
   canCancelEvent: (item: AdminEventListItem) => boolean;
+  canEditEvent?: (item: AdminEventListItem) => boolean;
   showCity?: boolean;
 }) {
   if (items.length === 0) {
@@ -92,6 +94,15 @@ function EventTable({
               <td className="px-4 py-4 text-text-primary">{item.participant_count}</td>
               <td className="px-8 py-4">
                 <div className="flex flex-wrap gap-2">
+                  {canEditEvent(item) ? (
+                    <Link
+                      href={`/events/${item.event_id}/edit`}
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-surface-border bg-white px-3 text-xs font-semibold text-text-primary hover:bg-surface-inset"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </Link>
+                  ) : null}
                   <Button
                     type="button"
                     variant="outline"
@@ -127,6 +138,7 @@ export default function EventsPage() {
   const weekMonday = currentWeekMonday();
   const [autoMatched, setAutoMatched] = useState<AdminEventListItem[]>([]);
   const [manualEvents, setManualEvents] = useState<AdminEventListItem[]>([]);
+  const [venuePublicEvents, setVenuePublicEvents] = useState<AdminEventListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [assignEventId, setAssignEventId] = useState<string | null>(null);
@@ -138,16 +150,18 @@ export default function EventsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [autoRes, manualRes] = await Promise.all([
+      const [autoRes, manualRes, venuePublicRes] = await Promise.all([
         api.listAdminEvents({
           source: "auto_matched",
           week: weekMonday,
           limit: 100,
         }),
         api.listAdminEvents({ source: "manual", limit: 100 }),
+        api.listAdminEvents({ source: "venue_public", limit: 100 }),
       ]);
       setAutoMatched(autoRes.items);
       setManualEvents(manualRes.items);
+      setVenuePublicEvents(venuePublicRes.items);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load events");
     } finally {
@@ -183,10 +197,14 @@ export default function EventsPage() {
     () => filterItems(manualEvents),
     [manualEvents, filterItems]
   );
+  const filteredVenuePublic = useMemo(
+    () => filterItems(venuePublicEvents),
+    [venuePublicEvents, filterItems]
+  );
 
   const allItems = useMemo(
-    () => [...autoMatched, ...manualEvents],
-    [autoMatched, manualEvents]
+    () => [...autoMatched, ...manualEvents, ...venuePublicEvents],
+    [autoMatched, manualEvents, venuePublicEvents]
   );
   const assignEvent = allItems.find((item) => item.event_id === assignEventId);
   const cancelEvent = allItems.find((item) => item.event_id === cancelEventId);
@@ -262,16 +280,25 @@ export default function EventsPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Events</h1>
             <p className="mt-2 max-w-2xl text-text-muted">
-              Review weekly auto-matched plans and manually created events.
+              Review auto-matched plans, invite-only events, and public venue programs.
             </p>
           </div>
-          <Link
-            href="/events/new"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-semibold text-white shadow-cta hover:bg-brand-dark"
-          >
-            <Plus className="h-4 w-4" />
-            Create Event
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/events/venue-program/new"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-brand bg-white px-4 text-sm font-semibold text-brand hover:bg-brand-tint"
+            >
+              <MapPin className="h-4 w-4" />
+              Venue public program
+            </Link>
+            <Link
+              href="/events/new"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-semibold text-white shadow-cta hover:bg-brand-dark"
+            >
+              <Plus className="h-4 w-4" />
+              Invite-only event
+            </Link>
+          </div>
         </div>
 
         <div className="space-y-8">
@@ -318,23 +345,62 @@ export default function EventsPage() {
           </section>
 
           <section className="overflow-hidden rounded-card border border-surface-border-light bg-white/80 backdrop-blur-sm">
-            <div className="flex items-center gap-2 border-b border-surface-border bg-brand-dark/5 px-8 py-4">
-              <CalendarDays className="h-5 w-5 text-brand" />
-              <h2 className="text-lg font-semibold text-brand-dark">Manual events</h2>
+            <div className="flex items-center justify-between gap-4 border-b border-surface-border bg-brand-dark/5 px-8 py-4">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-brand" />
+                <div>
+                  <h2 className="text-lg font-semibold text-brand-dark">Public venue programs</h2>
+                  <p className="text-xs text-text-muted">
+                    Listed in Explore — members reserve directly
+                  </p>
+                </div>
+              </div>
+              <span className="rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand">
+                {venuePublicEvents.length} upcoming
+              </span>
             </div>
 
             {loading ? (
               <div className="flex items-center justify-center gap-2 px-8 py-16 text-text-muted">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Loading manual events…
+                Loading venue programs…
+              </div>
+            ) : (
+              <EventTable
+                items={filteredVenuePublic}
+                emptyMessage={
+                  venuePublicEvents.length === 0
+                    ? "No public venue programs yet. Create a single or recurring program at a partner venue."
+                    : "No venue programs match your search."
+                }
+                onAssign={(id) => {
+                  setAssignEventId(id);
+                  setAssignUsers([]);
+                }}
+                onCancel={setCancelEventId}
+                canCancelEvent={canCancelEvent}
+              />
+            )}
+          </section>
+
+          <section className="overflow-hidden rounded-card border border-surface-border-light bg-white/80 backdrop-blur-sm">
+            <div className="flex items-center gap-2 border-b border-surface-border bg-brand-dark/5 px-8 py-4">
+              <CalendarDays className="h-5 w-5 text-brand" />
+              <h2 className="text-lg font-semibold text-brand-dark">Invite-only events</h2>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 px-8 py-16 text-text-muted">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Loading invite-only events…
               </div>
             ) : (
               <EventTable
                 items={filteredManual}
                 emptyMessage={
                   manualEvents.length === 0
-                    ? "No manual events yet. Create one to get started."
-                    : "No manual events match your search."
+                    ? "No invite-only events yet. Create one to get started."
+                    : "No invite-only events match your search."
                 }
                 onAssign={(id) => {
                   setAssignEventId(id);
