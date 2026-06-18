@@ -9,17 +9,13 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import { CITY_OPTIONS, cityLabel } from "@/lib/cities";
+import {
+  venueCityLabel,
+  venueCitySlug,
+  venuesForPicker,
+} from "@/lib/venues";
 import type { AdminVenueListItem } from "@/lib/types";
-
-const CITY_OPTIONS = [
-  { slug: "mumbai", label: "Mumbai" },
-  { slug: "delhi", label: "Delhi" },
-  { slug: "bangalore", label: "Bangalore" },
-  { slug: "chennai", label: "Chennai" },
-  { slug: "hyderabad", label: "Hyderabad" },
-  { slug: "pune", label: "Pune" },
-  { slug: "kolkata", label: "Kolkata" },
-];
 
 const EXPERIENCE_TYPES = [
   { value: "dinner", label: "Dinner" },
@@ -107,15 +103,23 @@ export default function NewVenueProgramPage() {
     };
   }, []);
 
-  const cityVenues = useMemo(
-    () => venues.filter((venue) => (venue.city_slug ?? venue.city_id) === citySlug),
+  const { items: cityVenues, showingAllCities } = useMemo(
+    () => venuesForPicker(venues, citySlug),
     [venues, citySlug]
   );
 
   const selectedVenue = useMemo(
-    () => cityVenues.find((venue) => venue.venue_id === venueId) ?? null,
-    [cityVenues, venueId]
+    () => venues.find((venue) => venue.venue_id === venueId) ?? null,
+    [venues, venueId]
   );
+
+  useEffect(() => {
+    if (!venueId) return;
+    const slug = selectedVenue ? venueCitySlug(selectedVenue) : null;
+    if (slug && slug !== citySlug) {
+      setCitySlug(slug);
+    }
+  }, [venueId, selectedVenue, citySlug]);
 
   useEffect(() => {
     if (venueId && !cityVenues.some((venue) => venue.venue_id === venueId)) {
@@ -142,11 +146,13 @@ export default function NewVenueProgramPage() {
 
     setSubmitting(true);
     try {
+      const resolvedCitySlug =
+        (selectedVenue ? venueCitySlug(selectedVenue) : null) ?? citySlug;
       const result = await api.createVenuePublicProgram(
         scheduleKind === "single"
           ? {
               venue_id: venueId,
-              city_slug: citySlug,
+              city_slug: resolvedCitySlug,
               experience_type: experienceType,
               title: title.trim() || undefined,
               subtitle: subtitle.trim() || undefined,
@@ -156,7 +162,7 @@ export default function NewVenueProgramPage() {
             }
           : {
               venue_id: venueId,
-              city_slug: citySlug,
+              city_slug: resolvedCitySlug,
               experience_type: experienceType,
               title: title.trim() || undefined,
               subtitle: subtitle.trim() || undefined,
@@ -257,14 +263,34 @@ export default function NewVenueProgramPage() {
                   className="flex h-12 w-full rounded-lg border border-surface-border bg-surface px-4 text-sm"
                 >
                   <option value="">
-                    {loadingVenues ? "Loading venues…" : "Select a venue"}
+                    {loadingVenues
+                      ? "Loading venues…"
+                      : cityVenues.length > 0
+                        ? "Select a venue"
+                        : venues.length > 0
+                          ? "No venues match this city"
+                          : "No venues yet — add one under Venues"}
                   </option>
                   {cityVenues.map((venue) => (
                     <option key={venue.venue_id} value={venue.venue_id}>
                       {venue.name}
+                      {showingAllCities ? ` · ${venueCityLabel(venue)}` : ""}
                     </option>
                   ))}
                 </select>
+                {showingAllCities ? (
+                  <p className="mt-2 text-xs text-text-muted">
+                    No venues in {cityLabel(citySlug)}. Showing all {venues.length}{" "}
+                    venue{venues.length === 1 ? "" : "s"} — pick one or change the city
+                    above.
+                  </p>
+                ) : cityVenues.length === 0 && !loadingVenues ? (
+                  <p className="mt-2 text-xs text-text-muted">
+                    {venues.length > 0
+                      ? `You have ${venues.length} venue${venues.length === 1 ? "" : "s"} in other cities. Change the city above or register a venue in ${cityLabel(citySlug)}.`
+                      : "Register a partner venue first under Venues in the sidebar."}
+                  </p>
+                ) : null}
               </div>
 
               {scheduleKind === "single" ? (

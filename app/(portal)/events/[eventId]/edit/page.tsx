@@ -9,18 +9,10 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import { CITY_OPTIONS, cityLabel } from "@/lib/cities";
 import { formatDateTime } from "@/lib/utils";
+import { venueCityLabel, venuesForPicker } from "@/lib/venues";
 import type { AdminEventDetail, AdminVenueListItem } from "@/lib/types";
-
-const CITY_OPTIONS = [
-  { slug: "mumbai", label: "Mumbai" },
-  { slug: "delhi", label: "Delhi" },
-  { slug: "bangalore", label: "Bangalore" },
-  { slug: "chennai", label: "Chennai" },
-  { slug: "hyderabad", label: "Hyderabad" },
-  { slug: "pune", label: "Pune" },
-  { slug: "kolkata", label: "Kolkata" },
-];
 
 function FieldLabel({
   children,
@@ -109,8 +101,8 @@ export default function EditEventPage() {
   }, []);
 
   const citySlug = event?.city_slug ?? "mumbai";
-  const cityVenues = useMemo(
-    () => venues.filter((v) => v.city_slug === citySlug),
+  const { items: cityVenues, showingAllCities } = useMemo(
+    () => venuesForPicker(venues, citySlug),
     [venues, citySlug]
   );
 
@@ -301,6 +293,7 @@ export default function EditEventPage() {
                       <option key={venue.venue_id} value={venue.venue_id}>
                         {venue.name}
                         {venue.address ? ` — ${venue.address}` : ""}
+                        {showingAllCities ? ` · ${venueCityLabel(venue)}` : ""}
                       </option>
                     ))}
                 </select>
@@ -310,8 +303,8 @@ export default function EditEventPage() {
                   </p>
                 ) : (
                   <p className="mt-2 text-xs text-text-muted">
-                    City:{" "}
-                    {CITY_OPTIONS.find((c) => c.slug === citySlug)?.label ?? citySlug}
+                    City: {cityLabel(citySlug)}
+                    {showingAllCities ? " · showing venues from all cities" : ""}
                   </p>
                 )}
               </div>

@@ -18,22 +18,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserSearchPicker } from "@/components/user-search-picker";
 import { api } from "@/lib/api";
+import { CITY_OPTIONS, cityLabel } from "@/lib/cities";
 import { formatDateTime } from "@/lib/utils";
+import {
+  venueCityLabel,
+  venueCitySlug,
+  venuesForPicker,
+} from "@/lib/venues";
 import type {
   AdminEventImageSuggestion,
   AdminUserSearchResult,
   AdminVenueListItem,
 } from "@/lib/types";
-
-const CITY_OPTIONS = [
-  { slug: "mumbai", label: "Mumbai" },
-  { slug: "delhi", label: "Delhi" },
-  { slug: "bangalore", label: "Bangalore" },
-  { slug: "chennai", label: "Chennai" },
-  { slug: "hyderabad", label: "Hyderabad" },
-  { slug: "pune", label: "Pune" },
-  { slug: "kolkata", label: "Kolkata" },
-];
 
 const EXPERIENCE_TYPES = [
   { value: "dinner", label: "Dinner" },
@@ -63,10 +59,6 @@ function defaultScheduledAt(): string {
   date.setHours(19, 0, 0, 0);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T19:00`;
-}
-
-function cityLabel(slug: string): string {
-  return CITY_OPTIONS.find((c) => c.slug === slug)?.label ?? slug;
 }
 
 function experienceLabel(value: string): string {
@@ -133,14 +125,14 @@ export default function NewEventPage() {
     };
   }, []);
 
-  const cityVenues = useMemo(
-    () => venues.filter((venue) => (venue.city_slug ?? venue.city_id) === citySlug),
+  const { items: cityVenues, showingAllCities } = useMemo(
+    () => venuesForPicker(venues, citySlug),
     [venues, citySlug]
   );
 
   const selectedVenue = useMemo(
-    () => cityVenues.find((venue) => venue.venue_id === venueId) ?? null,
-    [cityVenues, venueId]
+    () => venues.find((venue) => venue.venue_id === venueId) ?? null,
+    [venues, venueId]
   );
 
   useEffect(() => {
@@ -360,9 +352,15 @@ export default function NewEventPage() {
                       <option key={venue.venue_id} value={venue.venue_id}>
                         {venue.name}
                         {venue.address ? ` — ${venue.address}` : ""}
+                        {showingAllCities ? ` · ${venueCityLabel(venue)}` : ""}
                       </option>
                     ))}
                   </select>
+                  {showingAllCities ? (
+                    <p className="mt-2 text-xs text-text-muted">
+                      No venues in {cityLabel(citySlug)}. Showing all partner venues.
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-xs text-text-muted">
                     Optional. Links the event to a partner venue and shows the venue name in the
                     app. Without a venue, the city name is used as the location label.

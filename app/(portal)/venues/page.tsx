@@ -7,18 +7,10 @@ import { Building2, Loader2, MapPin, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { api } from "@/lib/api";
+import { CITY_LABELS } from "@/lib/cities";
+import { venueCitySlug } from "@/lib/venues";
 import { formatDate } from "@/lib/utils";
 import type { AdminVenueListItem } from "@/lib/types";
-
-const CITY_LABELS: Record<string, string> = {
-  mumbai: "Mumbai",
-  delhi: "Delhi",
-  bangalore: "Bangalore",
-  chennai: "Chennai",
-  hyderabad: "Hyderabad",
-  pune: "Pune",
-  kolkata: "Kolkata",
-};
 
 const BUDGET_FILTERS = [
   { label: "All tiers", value: "" },
@@ -27,11 +19,12 @@ const BUDGET_FILTERS = [
   { label: "Premium", value: "premium" },
 ] as const;
 
-function cityLabel(item: AdminVenueListItem): string {
-  if (item.city_slug && CITY_LABELS[item.city_slug]) {
-    return CITY_LABELS[item.city_slug];
+function cityLabelForVenue(item: AdminVenueListItem): string {
+  const slug = venueCitySlug(item);
+  if (slug && CITY_LABELS[slug]) {
+    return CITY_LABELS[slug];
   }
-  return item.city_slug ?? item.city_id.slice(0, 8);
+  return slug ?? item.city_id.slice(0, 8);
 }
 
 function budgetBadge(tier: string) {
@@ -85,14 +78,14 @@ export default function VenuesPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return items.filter((item) => {
-      if (cityFilter && item.city_slug !== cityFilter) return false;
+      if (cityFilter && venueCitySlug(item) !== cityFilter) return false;
       if (budgetFilter && item.budget_tier !== budgetFilter) return false;
       if (!q) return true;
       return (
         item.name.toLowerCase().includes(q) ||
         (item.venue_type?.toLowerCase().includes(q) ?? false) ||
         (item.address?.toLowerCase().includes(q) ?? false) ||
-        cityLabel(item).toLowerCase().includes(q) ||
+        cityLabelForVenue(item).toLowerCase().includes(q) ||
         item.venue_id.toLowerCase().includes(q)
       );
     });
@@ -229,7 +222,7 @@ export default function VenuesPage() {
                       <div className="grid gap-2 text-sm text-text-secondary sm:grid-cols-2">
                         <p>
                           <span className="font-semibold text-text-primary">City:</span>{" "}
-                          {cityLabel(venue)}
+                          {cityLabelForVenue(venue)}
                         </p>
                         <p>
                           <span className="font-semibold text-text-primary">Max tables:</span>{" "}
