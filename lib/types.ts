@@ -211,6 +211,7 @@ export interface AdminEventDetail {
   is_venue_public: boolean;
   series_id?: string | null;
   participant_count: number;
+  price_label?: string | null;
 }
 
 export interface AdminEventImageSuggestion {

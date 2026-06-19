@@ -15,10 +15,16 @@ import {
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
+import { EntryFeeFields } from "@/components/entry-fee-fields";
 import { Input } from "@/components/ui/input";
 import { UserSearchPicker } from "@/components/user-search-picker";
 import { api } from "@/lib/api";
 import { CITY_OPTIONS, cityLabel } from "@/lib/cities";
+import {
+  entryFeeInrForApi,
+  validateEntryFee,
+  type EntryFeeKind,
+} from "@/lib/entry-fee";
 import { formatDateTime } from "@/lib/utils";
 import {
   venueCityLabel,
@@ -92,6 +98,8 @@ export default function NewEventPage() {
   const [customImage, setCustomImage] = useState<File | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [entryFeeKind, setEntryFeeKind] = useState<EntryFeeKind>("free");
+  const [entryFeeAmount, setEntryFeeAmount] = useState("");
 
   const customPreviewUrl = useMemo(
     () => (customImage ? URL.createObjectURL(customImage) : null),
@@ -205,6 +213,12 @@ export default function NewEventPage() {
       );
       return;
     }
+    const entryFeeError = validateEntryFee(entryFeeKind, entryFeeAmount);
+    if (entryFeeError) {
+      toast.error(entryFeeError);
+      return;
+    }
+    const entryFeeInr = entryFeeInrForApi(entryFeeKind, entryFeeAmount);
 
     setSubmitting(true);
     try {
@@ -221,6 +235,7 @@ export default function NewEventPage() {
           source_image_catalog_id: usingCatalogSuggestion
             ? suggestion?.catalog_id ?? undefined
             : undefined,
+          entry_fee_inr: entryFeeInr,
         },
         customImage
       );
@@ -333,6 +348,12 @@ export default function NewEventPage() {
                     </option>
                   </select>
                 </div>
+                <EntryFeeFields
+                  kind={entryFeeKind}
+                  amount={entryFeeAmount}
+                  onKindChange={setEntryFeeKind}
+                  onAmountChange={setEntryFeeAmount}
+                />
                 <div className="sm:col-span-2">
                   <FieldLabel>Partner venue</FieldLabel>
                   <select

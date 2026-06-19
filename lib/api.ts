@@ -291,6 +291,7 @@ export const api = {
       capacity?: number;
       venue_id?: string | null;
       venue_label?: string;
+      entry_fee_inr?: number;
     }
   ) =>
     tribeeFetch<AdminEventDetail>(`/admin/events/${eventId}`, {
@@ -325,6 +326,7 @@ export const api = {
       venue_label?: string;
       venue_id?: string;
       source_image_catalog_id?: string;
+      entry_fee_inr?: number;
     },
     image?: File | null
   ) => {
@@ -358,6 +360,7 @@ export const api = {
       series_end_date?: string;
       scheduled_at?: string;
       capacity?: number;
+      entry_fee_inr?: number;
     },
     image?: File | null
   ) => {

@@ -7,9 +7,15 @@ import { CalendarDays, ChevronRight, Loader2, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
+import { EntryFeeFields } from "@/components/entry-fee-fields";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { CITY_OPTIONS, cityLabel } from "@/lib/cities";
+import {
+  entryFeeInrForApi,
+  validateEntryFee,
+  type EntryFeeKind,
+} from "@/lib/entry-fee";
 import {
   venueCityLabel,
   venueCitySlug,
@@ -82,6 +88,8 @@ export default function NewVenueProgramPage() {
   const [loadingVenues, setLoadingVenues] = useState(true);
   const [customImage, setCustomImage] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [entryFeeKind, setEntryFeeKind] = useState<EntryFeeKind>("free");
+  const [entryFeeAmount, setEntryFeeAmount] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -143,6 +151,12 @@ export default function NewVenueProgramPage() {
       toast.error("Select at least one weekday");
       return;
     }
+    const entryFeeError = validateEntryFee(entryFeeKind, entryFeeAmount);
+    if (entryFeeError) {
+      toast.error(entryFeeError);
+      return;
+    }
+    const entryFeeInr = entryFeeInrForApi(entryFeeKind, entryFeeAmount);
 
     setSubmitting(true);
     try {
@@ -159,6 +173,7 @@ export default function NewVenueProgramPage() {
               schedule_kind: "single",
               scheduled_at: new Date(scheduledAt).toISOString(),
               capacity: Number(capacity) || 20,
+              entry_fee_inr: entryFeeInr,
             }
           : {
               venue_id: venueId,
@@ -172,6 +187,7 @@ export default function NewVenueProgramPage() {
               series_start_date: seriesStartDate,
               series_end_date: seriesEndDate,
               capacity: Number(capacity) || 20,
+              entry_fee_inr: entryFeeInr,
             },
         customImage
       );
@@ -387,6 +403,12 @@ export default function NewVenueProgramPage() {
                   placeholder="Open to everyone — reserve your spot in the app"
                 />
               </div>
+              <EntryFeeFields
+                kind={entryFeeKind}
+                amount={entryFeeAmount}
+                onKindChange={setEntryFeeKind}
+                onAmountChange={setEntryFeeAmount}
+              />
               <div>
                 <FieldLabel required>Experience</FieldLabel>
                 <select

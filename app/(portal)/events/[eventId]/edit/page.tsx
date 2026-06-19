@@ -7,9 +7,16 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
+import { EntryFeeFields } from "@/components/entry-fee-fields";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { CITY_OPTIONS, cityLabel } from "@/lib/cities";
+import {
+  entryFeeFromLabel,
+  entryFeeInrForApi,
+  validateEntryFee,
+  type EntryFeeKind,
+} from "@/lib/entry-fee";
 import { formatDateTime } from "@/lib/utils";
 import { venueCityLabel, venuesForPicker } from "@/lib/venues";
 import type { AdminEventDetail, AdminVenueListItem } from "@/lib/types";
@@ -57,6 +64,8 @@ export default function EditEventPage() {
   const [scheduledAt, setScheduledAt] = useState("");
   const [capacity, setCapacity] = useState("");
   const [venueId, setVenueId] = useState("");
+  const [entryFeeKind, setEntryFeeKind] = useState<EntryFeeKind>("free");
+  const [entryFeeAmount, setEntryFeeAmount] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +80,9 @@ export default function EditEventPage() {
         setScheduledAt(isoToDatetimeLocal(detail.scheduled_at));
         setCapacity(detail.capacity != null ? String(detail.capacity) : "");
         setVenueId(detail.venue_id ?? "");
+        const fee = entryFeeFromLabel(detail.price_label);
+        setEntryFeeKind(fee.kind);
+        setEntryFeeAmount(fee.amount);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to load event");
       } finally {
@@ -118,6 +130,13 @@ export default function EditEventPage() {
       toast.error("Enter a valid date and time");
       return;
     }
+    if (hasCatalog) {
+      const entryFeeError = validateEntryFee(entryFeeKind, entryFeeAmount);
+      if (entryFeeError) {
+        toast.error(entryFeeError);
+        return;
+      }
+    }
 
     const body: {
       scheduled_at: string;
@@ -125,6 +144,7 @@ export default function EditEventPage() {
       subtitle?: string;
       capacity?: number;
       venue_id?: string | null;
+      entry_fee_inr?: number;
     } = {
       scheduled_at: scheduled.toISOString(),
     };
@@ -138,6 +158,7 @@ export default function EditEventPage() {
         return;
       }
       if (capacity.trim()) body.capacity = cap;
+      body.entry_fee_inr = entryFeeInrForApi(entryFeeKind, entryFeeAmount) ?? 0;
     }
 
     const initialVenue = event.venue_id ?? "";
@@ -260,6 +281,12 @@ export default function EditEventPage() {
                     onChange={(e) => setCapacity(e.target.value)}
                   />
                 </div>
+                <EntryFeeFields
+                  kind={entryFeeKind}
+                  amount={entryFeeAmount}
+                  onKindChange={setEntryFeeKind}
+                  onAmountChange={setEntryFeeAmount}
+                />
               </div>
             </section>
           ) : (
