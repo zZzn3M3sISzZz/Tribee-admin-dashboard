@@ -190,6 +190,9 @@ export interface AdminEventListItem {
   source?: "manual" | "auto_matched" | "venue_public" | string;
   matching_week?: string | null;
   city_id?: string | null;
+  series_id?: string | null;
+  schedule_kind?: "single" | "recurring" | string | null;
+  venue_label?: string | null;
 }
 
 export interface AdminEventDetail {

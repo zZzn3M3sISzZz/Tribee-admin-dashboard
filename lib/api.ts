@@ -266,11 +266,13 @@ export const api = {
     limit?: number;
     source?: "all" | "manual" | "auto_matched" | "venue_public";
     week?: string;
+    series_id?: string;
   }) => {
     const qs = new URLSearchParams();
     if (params?.limit) qs.set("limit", String(params.limit));
     if (params?.source) qs.set("source", params.source);
     if (params?.week) qs.set("week", params.week);
+    if (params?.series_id) qs.set("series_id", params.series_id);
     const query = qs.toString();
     return tribeeFetch<{ items: AdminEventListItem[] }>(
       `/admin/events${query ? `?${query}` : ""}`
