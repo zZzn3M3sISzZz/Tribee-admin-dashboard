@@ -11,7 +11,11 @@ import { Button } from "@/components/ui/button";
 import { UserSearchPicker } from "@/components/user-search-picker";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
-import type { AdminEventListItem, AdminUserSearchResult } from "@/lib/types";
+import type {
+  AdminEventListItem,
+  AdminEventParticipant,
+  AdminUserSearchResult,
+} from "@/lib/types";
 
 export default function VenueProgramSeriesPage() {
   const params = useParams<{ seriesId: string }>();
@@ -23,6 +27,10 @@ export default function VenueProgramSeriesPage() {
   const [assigning, setAssigning] = useState(false);
   const [cancelEventId, setCancelEventId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [participantsEventId, setParticipantsEventId] = useState<string | null>(null);
+  const [participants, setParticipants] = useState<AdminEventParticipant[]>([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [removingParticipantId, setRemovingParticipantId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,6 +59,7 @@ export default function VenueProgramSeriesPage() {
   const title = sample?.title ?? sample?.experience_type ?? "Venue program";
   const assignEvent = occurrences.find((item) => item.event_id === assignEventId);
   const cancelEvent = occurrences.find((item) => item.event_id === cancelEventId);
+  const participantsEvent = occurrences.find((item) => item.event_id === participantsEventId);
 
   const upcomingCount = useMemo(
     () =>
@@ -68,6 +77,9 @@ export default function VenueProgramSeriesPage() {
       (item.state === "pending_confirmation" || item.state === "confirmed")
     );
   };
+
+  const canManageParticipants = (item: AdminEventListItem) =>
+    item.state === "pending_confirmation" || item.state === "confirmed";
 
   const handleAssign = async () => {
     if (!assignEventId || assignUsers.length === 0) {
@@ -111,6 +123,46 @@ export default function VenueProgramSeriesPage() {
       toast.error(e instanceof Error ? e.message : "Failed to cancel event");
     } finally {
       setCancelling(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!participantsEventId) {
+      setParticipants([]);
+      return;
+    }
+    let cancelled = false;
+    setParticipantsLoading(true);
+    api
+      .listAdminEventParticipants(participantsEventId)
+      .then((res) => {
+        if (!cancelled) setParticipants(res.items);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          toast.error(e instanceof Error ? e.message : "Failed to load participants");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setParticipantsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [participantsEventId]);
+
+  const handleRemoveParticipant = async (userId: string) => {
+    if (!participantsEventId) return;
+    setRemovingParticipantId(userId);
+    try {
+      await api.removeAdminEventParticipant(participantsEventId, userId);
+      setParticipants((current) => current.filter((item) => item.user_id !== userId));
+      toast.success("Participant removed from event");
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to remove participant");
+    } finally {
+      setRemovingParticipantId(null);
     }
   };
 
@@ -177,6 +229,7 @@ export default function VenueProgramSeriesPage() {
                 setAssignEventId(id);
                 setAssignUsers([]);
               }}
+              onParticipants={setParticipantsEventId}
               onCancel={setCancelEventId}
               canCancelEvent={canCancelEvent}
             />
@@ -234,6 +287,104 @@ export default function VenueProgramSeriesPage() {
                 ) : (
                   "Assign selected"
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {participantsEventId && participantsEvent ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-card border border-surface-border bg-surface p-6 shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-brand-dark">Occurrence participants</h3>
+                <p className="mt-1 text-sm text-text-muted">
+                  {participantsEvent.title ?? participantsEvent.experience_type} on{" "}
+                  {formatDateTime(participantsEvent.scheduled_at)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setParticipantsEventId(null)}
+                className="rounded-full p-1 text-text-muted hover:bg-surface-inset"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {participantsLoading ? (
+              <div className="flex items-center justify-center gap-2 py-14 text-text-muted">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Loading participants…
+              </div>
+            ) : participants.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-surface-border px-4 py-10 text-center text-sm text-text-muted">
+                No one is assigned to this occurrence yet.
+              </div>
+            ) : (
+              <div className="max-h-[55vh] space-y-3 overflow-y-auto pr-1">
+                {participants.map((participant) => {
+                  const initials = participant.display_name
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0]?.toUpperCase() ?? "")
+                    .join("");
+                  return (
+                    <div
+                      key={participant.user_id}
+                      className="flex items-center justify-between gap-4 rounded-lg border border-surface-border px-4 py-3"
+                    >
+                      <div>
+                        <div className="font-medium text-brand-dark">
+                          {participant.display_name}{" "}
+                          <span className="text-xs text-text-muted">({initials || "U"})</span>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-text-muted">
+                          <span className="rounded bg-surface-inset px-2 py-1">
+                            {participant.verification_level}
+                          </span>
+                          <span className="rounded bg-surface-inset px-2 py-1">
+                            {participant.attendance_status}
+                          </span>
+                          {participant.user_confirmed ? (
+                            <span className="rounded bg-brand-tint px-2 py-1 text-brand">
+                              accepted
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                        disabled={
+                          removingParticipantId === participant.user_id ||
+                          !canManageParticipants(participantsEvent)
+                        }
+                        onClick={() => handleRemoveParticipant(participant.user_id)}
+                      >
+                        {removingParticipantId === participant.user_id ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Removing…
+                          </>
+                        ) : (
+                          "Kick out"
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <Button type="button" variant="outline" onClick={() => setParticipantsEventId(null)}>
+                Close
               </Button>
             </div>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Pencil, Trash2, UserPlus } from "lucide-react";
+import { Pencil, Trash2, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/utils";
 import type { AdminEventListItem } from "@/lib/types";
@@ -39,6 +39,7 @@ export function AdminEventTable({
   items,
   emptyMessage,
   onAssign,
+  onParticipants,
   onCancel,
   canCancelEvent,
   canEditEvent = (item) => item.state !== "cancelled",
@@ -47,6 +48,7 @@ export function AdminEventTable({
   items: AdminEventListItem[];
   emptyMessage: string;
   onAssign: (eventId: string) => void;
+  onParticipants: (eventId: string) => void;
   onCancel: (eventId: string) => void;
   canCancelEvent: (item: AdminEventListItem) => boolean;
   canEditEvent?: (item: AdminEventListItem) => boolean;
@@ -98,6 +100,15 @@ export function AdminEventTable({
                       Edit
                     </Link>
                   ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onParticipants(item.event_id)}
+                  >
+                    <Users className="h-4 w-4" />
+                    People
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"

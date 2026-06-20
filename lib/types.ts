@@ -248,6 +248,21 @@ export interface AddEventParticipantsResponse {
   participant_count: number;
 }
 
+export interface AdminEventParticipant {
+  user_id: string;
+  display_name: string;
+  verification_level: string;
+  avatar_url: string | null;
+  attendance_status: string;
+  user_confirmed: boolean;
+}
+
+export interface RemoveEventParticipantResponse {
+  event_id: string;
+  user_id: string;
+  participant_count: number;
+}
+
 export interface WeeklyMatchingSchedulerStatus {
   enabled: boolean;
   schedule_label: string;

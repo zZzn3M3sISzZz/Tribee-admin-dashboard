@@ -5,6 +5,7 @@ import type {
   AdminEventDetail,
   AdminEventImageSuggestion,
   AdminEventListItem,
+  AdminEventParticipant,
   AdminUserSearchResult,
   AdminVenueListItem,
   CatalogItem,
@@ -17,6 +18,7 @@ import type {
   IdentityVerificationItem,
   ModerationInsights,
   OverviewStats,
+  RemoveEventParticipantResponse,
   SafetyInboxMessage,
   SafetyInboxThread,
   SafetyReport,
@@ -387,6 +389,17 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ user_ids: userIds }),
       }
+    ),
+
+  listAdminEventParticipants: (eventId: string) =>
+    tribeeFetch<{ items: AdminEventParticipant[] }>(
+      `/admin/events/${eventId}/participants`
+    ),
+
+  removeAdminEventParticipant: (eventId: string, userId: string) =>
+    tribeeFetch<RemoveEventParticipantResponse>(
+      `/admin/events/${eventId}/participants/${userId}`,
+      { method: "DELETE" }
     ),
 
   cancelAdminEvent: (eventId: string) =>
