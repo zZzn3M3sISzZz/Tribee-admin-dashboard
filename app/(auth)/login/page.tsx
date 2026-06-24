@@ -197,6 +197,9 @@ function LoginForm() {
             <Link href={withBasePath("/child-safety")} className="hover:text-brand">
               Child Safety
             </Link>
+            <Link href={withBasePath("/copyright")} className="hover:text-brand">
+              Copyright
+            </Link>
             <Link href={withBasePath("/delete-account")} className="hover:text-brand">
               Delete Account
             </Link>
