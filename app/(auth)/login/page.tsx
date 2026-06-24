@@ -200,6 +200,9 @@ function LoginForm() {
             <Link href={withBasePath("/delete-account")} className="hover:text-brand">
               Delete Account
             </Link>
+            <Link href={withBasePath("/feedback")} className="hover:text-brand">
+              App Feedback
+            </Link>
           </div>
           <div className="flex items-center justify-center gap-6 text-[11px] font-medium uppercase tracking-[0.2em] text-text-secondary/60">
             <span>
