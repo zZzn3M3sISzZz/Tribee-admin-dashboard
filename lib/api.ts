@@ -18,6 +18,11 @@ import type {
   IdentityVerificationItem,
   ModerationInsights,
   OverviewStats,
+  PushBroadcastRequest,
+  PushBroadcastResult,
+  PushBroadcastCampaign,
+  PushBroadcastListResult,
+  PushBroadcastImageUploadResult,
   RemoveEventParticipantResponse,
   SafetyInboxMessage,
   SafetyInboxThread,
@@ -421,4 +426,37 @@ export const api = {
     tribeeFetch<{ status: string; week: string }>("/admin/matching/scheduler/run", {
       method: "POST",
     }),
+
+  sendPushBroadcast: (body: PushBroadcastRequest) =>
+    tribeeFetch<PushBroadcastResult>("/admin/push/broadcast", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  listPushBroadcasts: (params?: { limit?: number; offset?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.limit != null) search.set("limit", String(params.limit));
+    if (params?.offset != null) search.set("offset", String(params.offset));
+    const query = search.toString();
+    return tribeeFetch<PushBroadcastListResult>(
+      `/admin/push/broadcasts${query ? `?${query}` : ""}`
+    );
+  },
+
+  getPushBroadcast: (campaignId: string) =>
+    tribeeFetch<PushBroadcastCampaign>(`/admin/push/broadcasts/${campaignId}`),
+
+  uploadPushBroadcastImage: async (file: File) => {
+    const form = new FormData();
+    form.append("image", file, file.name);
+    const res = await fetch(withBasePath("/api/tribee/admin/push/images"), {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? `Request failed (${res.status})`);
+    }
+    return res.json() as Promise<PushBroadcastImageUploadResult>;
+  },
 };

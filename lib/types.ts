@@ -268,3 +268,64 @@ export interface WeeklyMatchingSchedulerStatus {
   schedule_label: string;
   updated_at?: string | null;
 }
+
+export type PushBroadcastAction =
+  | "open_explore"
+  | "open_community"
+  | "open_connections"
+  | "open_create_experience"
+  | "open_profile";
+
+export type PushBroadcastAudience = "test" | "all";
+
+export interface PushBroadcastRequest {
+  title: string;
+  body: string;
+  image_url?: string | null;
+  action: PushBroadcastAction;
+  action_params?: Record<string, unknown>;
+  audience: PushBroadcastAudience;
+  confirm_phrase?: string | null;
+}
+
+export interface PushBroadcastResult {
+  campaign_id: string;
+  audience: PushBroadcastAudience;
+  action: PushBroadcastAction;
+  target_users: number;
+  target_tokens: number;
+  sent_count: number;
+  failed_count: number;
+  status: string;
+}
+
+export interface PushBroadcastCampaign {
+  id: string;
+  admin_id: string;
+  title: string;
+  body: string;
+  image_url?: string | null;
+  action: PushBroadcastAction;
+  action_params: Record<string, unknown>;
+  audience: PushBroadcastAudience;
+  status: string;
+  target_users: number;
+  target_tokens: number;
+  sent_count: number;
+  failed_count: number;
+  error_message?: string | null;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface PushBroadcastListResult {
+  campaigns: PushBroadcastCampaign[];
+  limit: number;
+  offset: number;
+}
+
+export interface PushBroadcastImageUploadResult {
+  image_url: string;
+  status: string;
+}
