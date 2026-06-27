@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
+import {
+  RefreshProgressBar,
+  WEEKLY_OPT_INS_REFRESH_MS,
+} from "@/components/refresh-progress-bar";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { withBasePath } from "@/lib/base-path";
@@ -13,6 +17,7 @@ export default function SettingsPage() {
   const [scheduler, setScheduler] = useState<WeeklyMatchingSchedulerStatus | null>(null);
   const [schedulerLoading, setSchedulerLoading] = useState(true);
   const [schedulerBusy, setSchedulerBusy] = useState(false);
+  const [weeklyOptInsRefreshedAt, setWeeklyOptInsRefreshedAt] = useState(() => Date.now());
 
   useEffect(() => {
     fetch(withBasePath("/api/auth/session"))
@@ -29,7 +34,10 @@ export default function SettingsPage() {
       api
         .getWeeklyMatchingScheduler()
         .then((data) => {
-          if (active) setScheduler(data);
+          if (active) {
+            setScheduler(data);
+            setWeeklyOptInsRefreshedAt(Date.now());
+          }
         })
         .catch((err: Error) => toast.error(err.message))
         .finally(() => {
@@ -38,7 +46,10 @@ export default function SettingsPage() {
     };
 
     loadScheduler(true);
-    const interval = window.setInterval(() => loadScheduler(false), 30_000);
+    const interval = window.setInterval(
+      () => loadScheduler(false),
+      WEEKLY_OPT_INS_REFRESH_MS
+    );
     return () => {
       active = false;
       window.clearInterval(interval);
@@ -138,6 +149,10 @@ export default function SettingsPage() {
                       ? `Week of ${scheduler.matching_week} · updates every 30s`
                       : "Members opted in for the current matching week"}
                   </p>
+                  <RefreshProgressBar
+                    className="mt-3"
+                    lastRefreshedAt={weeklyOptInsRefreshedAt}
+                  />
                 </div>
 
                 <div className="flex flex-wrap gap-3">

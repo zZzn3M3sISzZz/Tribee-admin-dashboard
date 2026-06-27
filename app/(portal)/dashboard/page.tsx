@@ -19,6 +19,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
+import {
+  RefreshProgressBar,
+  WEEKLY_OPT_INS_REFRESH_MS,
+} from "@/components/refresh-progress-bar";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import {
@@ -73,20 +77,23 @@ function StatCard({
   hint,
   icon: Icon,
   accent,
+  footer,
 }: {
   label: string;
   value: string | number;
   hint: string;
   icon: React.ElementType;
   accent?: string;
+  footer?: React.ReactNode;
 }) {
   return (
     <div className="rounded-card border border-surface-border bg-white p-6">
       <div className="flex items-start justify-between">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-sm text-text-secondary">{label}</p>
           <p className="mt-2 text-3xl font-bold text-brand-dark">{value}</p>
           <p className="mt-1 text-xs text-text-secondary">{hint}</p>
+          {footer ? <div className="mt-3">{footer}</div> : null}
         </div>
         <div
           className={`flex h-10 w-10 items-center justify-center rounded-lg ${accent ?? "bg-brand-tint text-brand"}`}
@@ -106,13 +113,20 @@ export default function DashboardPage() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [weeklyOptInsRefreshedAt, setWeeklyOptInsRefreshedAt] = useState(() => Date.now());
 
   useEffect(() => {
     const loadOverview = () => {
-      api.getOverview().then(setStats).catch(() => setStats(null));
+      api
+        .getOverview()
+        .then((data) => {
+          setStats(data);
+          setWeeklyOptInsRefreshedAt(Date.now());
+        })
+        .catch(() => setStats(null));
     };
     loadOverview();
-    const interval = window.setInterval(loadOverview, 30_000);
+    const interval = window.setInterval(loadOverview, WEEKLY_OPT_INS_REFRESH_MS);
     return () => window.clearInterval(interval);
   }, []);
 
@@ -205,6 +219,9 @@ export default function DashboardPage() {
             }
             icon={CalendarCheck}
             accent="bg-brand-tint text-brand"
+            footer={
+              <RefreshProgressBar lastRefreshedAt={weeklyOptInsRefreshedAt} />
+            }
           />
           <StatCard
             label="Safety Issues"
