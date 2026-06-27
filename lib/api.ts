@@ -123,6 +123,18 @@ export const api = {
       body: JSON.stringify(body ?? {}),
     }),
 
+  removeCommunityPost: (
+    postId: string,
+    body?: { report_id?: string; notes?: string },
+  ) =>
+    tribeeFetch<{ post_id: string; status: string }>(
+      `/admin/community/posts/${postId}/remove`,
+      {
+        method: "POST",
+        body: JSON.stringify(body ?? {}),
+      },
+    ),
+
   suspendUser: (
     userId: string,
     body?: { report_id?: string; notes?: string },

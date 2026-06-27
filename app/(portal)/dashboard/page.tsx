@@ -15,6 +15,7 @@ import {
   ClipboardList,
   Home,
   Users,
+  CalendarCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
@@ -107,7 +108,12 @@ export default function DashboardPage() {
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    api.getOverview().then(setStats).catch(() => setStats(null));
+    const loadOverview = () => {
+      api.getOverview().then(setStats).catch(() => setStats(null));
+    };
+    loadOverview();
+    const interval = window.setInterval(loadOverview, 30_000);
+    return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -176,7 +182,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="mb-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-8 grid gap-5 md:grid-cols-2 xl:grid-cols-5">
           <StatCard
             label="Total Members"
             value={stats?.total_members.toLocaleString() ?? "—"}
@@ -188,6 +194,17 @@ export default function DashboardPage() {
             value={stats?.active_hosts ?? "—"}
             hint="Approved community hosts"
             icon={Home}
+          />
+          <StatCard
+            label="Weekly Opt-ins"
+            value={stats?.weekly_opt_in_count?.toLocaleString() ?? "—"}
+            hint={
+              stats?.matching_week
+                ? `Week of ${stats.matching_week} · refreshes every 30s`
+                : "Members opted in this week"
+            }
+            icon={CalendarCheck}
+            accent="bg-brand-tint text-brand"
           />
           <StatCard
             label="Safety Issues"

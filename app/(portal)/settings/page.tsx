@@ -22,12 +22,27 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    setSchedulerLoading(true);
-    api
-      .getWeeklyMatchingScheduler()
-      .then(setScheduler)
-      .catch((err: Error) => toast.error(err.message))
-      .finally(() => setSchedulerLoading(false));
+    let active = true;
+
+    const loadScheduler = (showLoading = false) => {
+      if (showLoading) setSchedulerLoading(true);
+      api
+        .getWeeklyMatchingScheduler()
+        .then((data) => {
+          if (active) setScheduler(data);
+        })
+        .catch((err: Error) => toast.error(err.message))
+        .finally(() => {
+          if (active && showLoading) setSchedulerLoading(false);
+        });
+    };
+
+    loadScheduler(true);
+    const interval = window.setInterval(() => loadScheduler(false), 30_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, []);
 
   const signOut = async () => {
@@ -109,6 +124,20 @@ export default function SettingsPage() {
                   >
                     {scheduler.enabled ? "Enabled" : "Paused"}
                   </span>
+                </div>
+
+                <div className="rounded-lg border border-brand/20 bg-brand-tint/40 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+                    Live weekly opt-ins
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-brand-dark">
+                    {(scheduler.weekly_opt_in_count ?? 0).toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs text-text-secondary">
+                    {scheduler.matching_week
+                      ? `Week of ${scheduler.matching_week} · updates every 30s`
+                      : "Members opted in for the current matching week"}
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap gap-3">

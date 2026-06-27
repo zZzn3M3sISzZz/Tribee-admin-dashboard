@@ -48,6 +48,8 @@ export interface SafetyReport {
   escalated_at: string | null;
   ncmec_reported_at: string | null;
   created_at: string;
+  message_id?: string | null;
+  community_post_id?: string | null;
 }
 
 export interface SafetyInboxThread {
@@ -86,6 +88,8 @@ export interface OverviewStats {
   open_safety_reports: number;
   pending_identity_verifications: number;
   pending_host_applications: number;
+  matching_week?: string;
+  weekly_opt_in_count?: number;
 }
 
 export interface GrowthPoint {
@@ -267,6 +271,8 @@ export interface WeeklyMatchingSchedulerStatus {
   enabled: boolean;
   schedule_label: string;
   updated_at?: string | null;
+  matching_week?: string;
+  weekly_opt_in_count?: number;
 }
 
 export type PushBroadcastAction =

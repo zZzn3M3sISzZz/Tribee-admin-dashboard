@@ -171,6 +171,27 @@ export default function ReportsPage() {
     }
   };
 
+  const removeCommunityPost = async (postId: string, reportId: string) => {
+    if (
+      !window.confirm(
+        "Remove this community post from the feed? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    try {
+      await api.removeCommunityPost(postId, {
+        report_id: reportId,
+        notes: "Removed from Safety & Moderation Hub",
+      });
+      toast.success("Community post removed");
+      load();
+      loadInsights();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not remove post");
+    }
+  };
+
   const exportLogs = async () => {
     try {
       const res = await api.listSafetyReports({
@@ -437,6 +458,17 @@ export default function ReportsPage() {
                           >
                             Export
                           </Button>
+                          {item.community_post_id ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                removeCommunityPost(item.community_post_id!, item.id)
+                              }
+                            >
+                              Remove Post
+                            </Button>
+                          ) : null}
                           {item.reported_user_id ? (
                             <>
                               <Button
