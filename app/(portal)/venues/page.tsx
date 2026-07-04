@@ -85,6 +85,7 @@ export default function VenuesPage() {
         item.name.toLowerCase().includes(q) ||
         (item.venue_type?.toLowerCase().includes(q) ?? false) ||
         (item.address?.toLowerCase().includes(q) ?? false) ||
+        (item.amenities?.some((amenity) => amenity.includes(q.replace(/\s+/g, "_"))) ?? false) ||
         cityLabelForVenue(item).toLowerCase().includes(q) ||
         item.venue_id.toLowerCase().includes(q)
       );

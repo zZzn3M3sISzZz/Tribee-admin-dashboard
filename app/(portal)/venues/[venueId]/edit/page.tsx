@@ -10,6 +10,7 @@ import {
   Info,
   Loader2,
   MapPin,
+  UtensilsCrossed,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -17,8 +18,15 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { VenueAmenitiesEditor } from "@/components/venue-amenities-editor";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import {
+  buildVenueAmenitiesPayload,
+  parseLegacyAmenitiesFromDescription,
+  splitVenueAmenities,
+  stripLegacyAmenitiesFromDescription,
+} from "@/lib/venue-amenities";
 import type { AdminVenueListItem } from "@/lib/types";
 
 const VENUE_TYPES = [
@@ -79,6 +87,9 @@ export default function EditVenuePage() {
   const [maxTables, setMaxTables] = useState("10");
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [customTags, setCustomTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const previewUrls = useMemo(
@@ -102,7 +113,13 @@ export default function EditVenuePage() {
         if (cancelled) return;
         setVenueName(venue.name);
         setVenueType(venue.venue_type ?? VENUE_TYPES[0]);
-        setAbout(venue.description ?? "");
+        const legacyAmenities = parseLegacyAmenitiesFromDescription(venue.description);
+        const structuredAmenities =
+          (venue.amenities?.length ?? 0) > 0 ? venue.amenities! : legacyAmenities;
+        const { standard, custom } = splitVenueAmenities(structuredAmenities);
+        setSelectedAmenities(standard);
+        setCustomTags(custom);
+        setAbout(stripLegacyAmenitiesFromDescription(venue.description));
         setAddress(venue.address ?? "");
         setCity(venue.city_slug ?? venue.city_id);
         setBudgetTier(venue.budget_tier);
@@ -144,6 +161,23 @@ export default function EditVenuePage() {
     setNewImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const toggleAmenity = (id: string) => {
+    setSelectedAmenities((prev) =>
+      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
+    );
+  };
+
+  const addCustomTag = () => {
+    const tag = newTag.trim().toLowerCase().replace(/-/g, "_");
+    if (!tag || customTags.includes(tag)) return;
+    setCustomTags((prev) => [...prev, tag]);
+    setNewTag("");
+  };
+
+  const removeTag = (tag: string) => {
+    setCustomTags((prev) => prev.filter((t) => t !== tag));
+  };
+
   const handleSave = async () => {
     if (!venueName.trim() || !address.trim()) {
       toast.error("Venue name and address are required");
@@ -166,6 +200,7 @@ export default function EditVenuePage() {
           description: about.trim() || undefined,
           address: address.trim(),
           venue_type: venueType,
+          amenities: buildVenueAmenitiesPayload(selectedAmenities, customTags),
           h3_index: 0,
         },
         newImages.length > 0 ? newImages : undefined
@@ -369,6 +404,27 @@ export default function EditVenuePage() {
                   </label>
                 ) : null}
               </div>
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-card border border-surface-border-light bg-white/80">
+            <div className="flex items-center justify-between border-b border-surface-border bg-brand-dark/5 px-8 py-4">
+              <div className="flex items-center gap-2">
+                <UtensilsCrossed className="h-5 w-5 text-brand" />
+                <h2 className="text-lg font-semibold text-brand-dark">Venue Offerings & Amenities</h2>
+              </div>
+              <span className="text-xs text-text-muted">Select all that apply</span>
+            </div>
+            <div className="p-8">
+              <VenueAmenitiesEditor
+                selectedAmenities={selectedAmenities}
+                customTags={customTags}
+                newTag={newTag}
+                onToggleAmenity={toggleAmenity}
+                onNewTagChange={setNewTag}
+                onAddCustomTag={addCustomTag}
+                onRemoveCustomTag={removeTag}
+              />
             </div>
           </section>
 

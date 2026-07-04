@@ -3,13 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
-  Check,
   ChevronRight,
   ImagePlus,
   Info,
   Loader2,
   MapPin,
-  Plus,
   UtensilsCrossed,
   X,
 } from "lucide-react";
@@ -19,7 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { VenueAmenitiesEditor } from "@/components/venue-amenities-editor";
+import { buildVenueAmenitiesPayload } from "@/lib/venue-amenities";
 
 const VENUE_TYPES = [
   "Cafe & Lounge",
@@ -44,14 +43,6 @@ const BUDGET_TIERS = [
   { value: "mid", label: "Mid" },
   { value: "premium", label: "Premium" },
 ];
-
-const AMENITIES = [
-  { id: "breakfast", label: "Breakfast", icon: "🍞" },
-  { id: "lunch", label: "Lunch", icon: "🍔" },
-  { id: "dinner", label: "Dinner", icon: "🍽️" },
-  { id: "board-games", label: "Board Games", icon: "🎮" },
-  { id: "sports", label: "Sports", icon: "🏋️" },
-] as const;
 
 const MAX_IMAGES = 3;
 
@@ -155,10 +146,6 @@ export default function NewVenuePage() {
 
   const buildDescription = () => {
     const parts = [about.trim()];
-    const amenities = [...selectedAmenities, ...customTags];
-    if (amenities.length) {
-      parts.push(`Amenities: ${amenities.join(", ")}`);
-    }
     if (postalCode.trim()) {
       parts.push(`Postal code: ${postalCode.trim()}`);
     }
@@ -186,6 +173,7 @@ export default function NewVenuePage() {
           description: buildDescription() || undefined,
           address: address.trim(),
           venue_type: venueType,
+          amenities: buildVenueAmenitiesPayload(selectedAmenities, customTags),
           h3_index: 0,
         },
         images
@@ -392,71 +380,16 @@ export default function NewVenuePage() {
             title="Venue Offerings & Amenities"
             action={<span className="text-xs text-text-muted">Select all that apply</span>}
           >
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-              {AMENITIES.map(({ id, label, icon }) => {
-                const selected = selectedAmenities.includes(id);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => toggleAmenity(id)}
-                    className={cn(
-                      "relative flex flex-col items-center gap-3 rounded-lg border p-5 transition-colors",
-                      selected
-                        ? "border-brand bg-brand-tint"
-                        : "border-surface-border bg-surface-inset/50 hover:border-brand/40"
-                    )}
-                  >
-                    {selected && (
-                      <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white">
-                        <Check className="h-3 w-3" />
-                      </span>
-                    )}
-                    <span className="text-2xl">{icon}</span>
-                    <span className="text-sm font-medium text-brand-dark">{label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <VenueAmenitiesEditor
+              selectedAmenities={selectedAmenities}
+              customTags={customTags}
+              newTag={newTag}
+              onToggleAmenity={toggleAmenity}
+              onNewTagChange={setNewTag}
+              onAddCustomTag={addCustomTag}
+              onRemoveCustomTag={removeTag}
+            />
 
-            <div className="mt-8">
-              <FieldLabel>Custom Categories</FieldLabel>
-              <div className="flex flex-wrap items-center gap-2">
-                {customTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-surface-border bg-surface-inset px-3 py-1.5 text-sm text-brand-dark"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(tag)}
-                      className="text-text-muted hover:text-brand"
-                      aria-label={`Remove ${tag}`}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </span>
-                ))}
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomTag())}
-                    placeholder="Add category"
-                    className="h-9 w-36"
-                  />
-                  <button
-                    type="button"
-                    onClick={addCustomTag}
-                    className="flex h-9 items-center gap-1 rounded-lg border border-dashed border-surface-border px-3 text-xs font-medium text-text-muted hover:border-brand hover:text-brand"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add Custom
-                  </button>
-                </div>
-              </div>
-            </div>
           </SectionCard>
 
           <div className="flex flex-col gap-4 border-t border-surface-border pt-6 sm:flex-row sm:items-center sm:justify-between">
