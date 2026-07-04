@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { VenueAmenitiesEditor } from "@/components/venue-amenities-editor";
-import { buildVenueAmenitiesPayload } from "@/lib/venue-amenities";
+import { buildVenueAmenitiesPayload, normalizeAmenitySlug } from "@/lib/venue-amenities";
 
 const VENUE_TYPES = [
   "Cafe & Lounge",
@@ -114,7 +114,7 @@ export default function NewVenuePage() {
   };
 
   const addCustomTag = () => {
-    const tag = newTag.trim();
+    const tag = normalizeAmenitySlug(newTag);
     if (!tag || customTags.includes(tag)) return;
     setCustomTags((prev) => [...prev, tag]);
     setNewTag("");

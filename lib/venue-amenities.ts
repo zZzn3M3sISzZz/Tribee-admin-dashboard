@@ -40,13 +40,20 @@ export function splitVenueAmenities(amenities: string[] = []): {
   return { standard, custom };
 }
 
+export function normalizeAmenitySlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .join("_");
+}
+
 export function buildVenueAmenitiesPayload(
   selectedStandard: string[],
   customTags: string[]
 ): string[] {
-  const normalizedCustom = customTags
-    .map((tag) => tag.trim().toLowerCase().replace(/-/g, "_"))
-    .filter(Boolean);
+  const normalizedCustom = customTags.map(normalizeAmenitySlug).filter(Boolean);
   return Array.from(new Set([...selectedStandard, ...normalizedCustom]));
 }
 
@@ -69,6 +76,6 @@ export function parseLegacyAmenitiesFromDescription(
   return description
     .slice(index + marker.length)
     .split(",")
-    .map((part) => part.trim().toLowerCase().replace(/-/g, "_"))
+    .map((part) => normalizeAmenitySlug(part))
     .filter(Boolean);
 }

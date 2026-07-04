@@ -23,6 +23,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
   buildVenueAmenitiesPayload,
+  normalizeAmenitySlug,
   parseLegacyAmenitiesFromDescription,
   splitVenueAmenities,
   stripLegacyAmenitiesFromDescription,
@@ -168,7 +169,7 @@ export default function EditVenuePage() {
   };
 
   const addCustomTag = () => {
-    const tag = newTag.trim().toLowerCase().replace(/-/g, "_");
+    const tag = normalizeAmenitySlug(newTag);
     if (!tag || customTags.includes(tag)) return;
     setCustomTags((prev) => [...prev, tag]);
     setNewTag("");
