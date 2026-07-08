@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fira_Code, Fira_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -18,6 +18,12 @@ const firaCode = Fira_Code({
 export const metadata: Metadata = {
   title: "offScreen Admin Console",
   description: "Tribee admin dashboard for moderation and operations",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

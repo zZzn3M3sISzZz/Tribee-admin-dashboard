@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { MobileNavProvider } from "@/components/layout/mobile-nav";
 import { Sidebar } from "@/components/layout/sidebar";
 import { withBasePath } from "@/lib/base-path";
 import type { MeResponse } from "@/lib/types";
@@ -32,7 +33,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-surface">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-surface px-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
           <Loader2 className="h-5 w-5 animate-spin text-brand" />
         </div>
@@ -42,9 +43,11 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-surface">
-      <Sidebar user={user} />
-      <div className="flex min-h-screen flex-1 flex-col overflow-hidden">{children}</div>
-    </div>
+    <MobileNavProvider user={user}>
+      <div className="flex min-h-screen min-w-0 bg-surface">
+        <Sidebar user={user} />
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
+      </div>
+    </MobileNavProvider>
   );
 }

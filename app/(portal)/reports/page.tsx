@@ -251,15 +251,15 @@ export default function ReportsPage() {
         value={search}
         onChange={setSearch}
       />
-      <main className="flex-1 overflow-auto px-8 py-8">
-        <div className="mb-6 flex items-end justify-between">
+      <main className="flex-1 overflow-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-brand-dark">Safety &amp; Moderation Hub</h1>
+            <h1 className="text-2xl font-bold text-brand-dark sm:text-3xl">Safety &amp; Moderation Hub</h1>
             <p className="mt-2 text-text-secondary">
               Review and manage reported incidents across the offScreen community.
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <Button variant="outline" onClick={exportLogs}>
               <Download className="h-4 w-4" />
               Export Logs
@@ -360,7 +360,8 @@ export default function ReportsPage() {
               ))}
             </div>
 
-            <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="border-b border-surface-border text-xs uppercase tracking-wider text-text-secondary">
                 <tr>
                   <th className="px-6 py-4">Reported User</th>
@@ -498,6 +499,7 @@ export default function ReportsPage() {
                 )}
               </tbody>
             </table>
+            </div>
             <div className="border-t border-surface-border px-6 py-4 text-xs text-text-secondary">
               Showing {filtered.length} of {total} reports
             </div>

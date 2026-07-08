@@ -232,7 +232,7 @@ export default function DashboardPage() {
         title="Overview"
         subtitle="Real-time platform health monitoring"
       />
-      <main className="flex-1 overflow-auto px-6 py-6">
+      <main className="flex-1 overflow-auto px-4 py-4 sm:px-6 sm:py-6">
         <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard
             label="Total Members"

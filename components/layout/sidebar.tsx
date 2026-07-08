@@ -2,61 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  AlertTriangle,
-  Bell,
-  CalendarDays,
-  Home,
-  LayoutGrid,
-  MapPin,
-  MessageSquare,
-  Settings,
-  Tags,
-  UserCheck,
-} from "lucide-react";
 import { OffscreenLogo } from "@/components/offscreen-logo";
 import { cn, initials } from "@/lib/utils";
 import type { MeResponse } from "@/lib/types";
-
-const NAV_SECTIONS = [
-  {
-    label: "Overview",
-    items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutGrid }],
-  },
-  {
-    label: "People",
-    items: [
-      { label: "User Approvals", href: "/user-approvals", icon: UserCheck },
-      { label: "Host Applications", href: "/host-applications", icon: Home },
-    ],
-  },
-  {
-    label: "Content",
-    items: [
-      { label: "Events", href: "/events", icon: CalendarDays },
-      { label: "Venues", href: "/venues", icon: MapPin },
-      { label: "Taxonomy", href: "/taxonomy", icon: Tags },
-    ],
-  },
-  {
-    label: "Safety",
-    items: [
-      { label: "Reports", href: "/reports", icon: AlertTriangle },
-      { label: "Safety Inbox", href: "/safety-inbox", icon: MessageSquare },
-    ],
-  },
-  {
-    label: "System",
-    items: [
-      { label: "Push Notifications", href: "/push", icon: Bell },
-      { label: "Settings", href: "/settings", icon: Settings },
-    ],
-  },
-];
-
-function isActive(pathname: string, href: string) {
-  return pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-}
+import { isNavActive, NAV_SECTIONS } from "./nav-config";
 
 export function Sidebar({ user }: { user?: MeResponse | null }) {
   const pathname = usePathname();
@@ -64,7 +13,7 @@ export function Sidebar({ user }: { user?: MeResponse | null }) {
   const role = user?.roles.includes("ops_admin") ? "Ops Admin" : "Moderator";
 
   return (
-    <aside className="flex h-screen w-[260px] shrink-0 flex-col border-r border-surface-border bg-surface-sidebar">
+    <aside className="hidden h-screen w-[260px] shrink-0 flex-col border-r border-surface-border bg-surface-sidebar lg:flex">
       <div className="border-b border-surface-border px-5 py-5">
         <div className="flex items-center gap-3">
           <OffscreenLogo size={32} />
@@ -87,7 +36,7 @@ export function Sidebar({ user }: { user?: MeResponse | null }) {
             </p>
             <div className="flex flex-col gap-0.5">
               {section.items.map(({ label, href, icon: Icon }) => {
-                const active = isActive(pathname, href);
+                const active = isNavActive(pathname, href);
                 return (
                   <Link
                     key={href}
