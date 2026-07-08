@@ -3,11 +3,67 @@
 @tailwind utilities;
 
 :root {
-  --brand: #1b4332;
-  --brand-dark: #012d1d;
-  --surface: #fbf9f8;
+  --color-primary: #1b4332;
+  --color-secondary: #274e3d;
+  --color-accent: #d97706;
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-muted: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-destructive: #dc2626;
+  --color-ring: #1b4332;
 }
 
-body {
-  @apply bg-surface text-text-primary antialiased;
+@layer base {
+  body {
+    @apply bg-surface text-text-primary antialiased;
+  }
+
+  ::selection {
+    @apply bg-brand/15 text-brand-dark;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand/30 ring-offset-2 ring-offset-surface-card;
+  }
+}
+
+@layer components {
+  .admin-card {
+    @apply rounded-card border border-surface-border bg-surface-card shadow-card;
+  }
+
+  .admin-page-title {
+    @apply font-mono text-2xl font-semibold tracking-tight text-brand-dark;
+  }
+
+  .admin-section-title {
+    @apply text-sm font-semibold uppercase tracking-wider text-text-muted;
+  }
+
+  .admin-stat-value {
+    @apply font-mono text-3xl font-bold tabular-nums tracking-tight text-brand-dark;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-200;
+  }
+
+  .nav-item-active {
+    @apply bg-brand-tint font-medium text-brand-dark;
+  }
+
+  .nav-item-inactive {
+    @apply text-text-muted hover:bg-surface-inset hover:text-text-secondary;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

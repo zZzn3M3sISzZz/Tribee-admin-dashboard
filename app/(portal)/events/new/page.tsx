@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { EntryFeeFields } from "@/components/entry-fee-fields";
 import { Input } from "@/components/ui/input";
 import { UserSearchPicker } from "@/components/user-search-picker";
+import { validateEventScheduledAt } from "@/lib/eventSchedule";
 import { api } from "@/lib/api";
 import { CITY_OPTIONS, cityLabel } from "@/lib/cities";
 import {
@@ -180,6 +181,11 @@ export default function NewEventPage() {
       toast.error("Invalid scheduled date");
       return;
     }
+    const scheduleError = validateEventScheduledAt(scheduled);
+    if (scheduleError) {
+      toast.error(scheduleError);
+      return;
+    }
 
     setLoadingPreview(true);
     try {
@@ -202,6 +208,11 @@ export default function NewEventPage() {
     const scheduled = new Date(scheduledAt);
     if (Number.isNaN(scheduled.getTime())) {
       toast.error("Invalid scheduled date");
+      return;
+    }
+    const scheduleError = validateEventScheduledAt(scheduled);
+    if (scheduleError) {
+      toast.error(scheduleError);
       return;
     }
 

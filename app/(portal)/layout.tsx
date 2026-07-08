@@ -2,6 +2,7 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { withBasePath } from "@/lib/base-path";
 import type { MeResponse } from "@/lib/types";
@@ -31,8 +32,11 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface text-brand">
-        Loading admin console…
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-surface">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+          <Loader2 className="h-5 w-5 animate-spin text-brand" />
+        </div>
+        <p className="font-mono text-sm text-text-muted">Loading admin console…</p>
       </div>
     );
   }

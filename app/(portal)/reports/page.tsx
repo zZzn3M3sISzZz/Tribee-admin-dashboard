@@ -48,7 +48,7 @@ function StatusBadge({ status }: { status: string }) {
     normalized === "open"
       ? "bg-red-100 text-red-700"
       : normalized === "investigating"
-        ? "bg-status-mint text-brand-dark"
+        ? "bg-status-mint-bg text-brand-dark"
         : "bg-surface-inset text-text-muted";
 
   return (

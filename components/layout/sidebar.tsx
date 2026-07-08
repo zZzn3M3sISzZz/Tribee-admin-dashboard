@@ -14,21 +14,49 @@ import {
   Tags,
   UserCheck,
 } from "lucide-react";
+import { OffscreenLogo } from "@/components/offscreen-logo";
 import { cn, initials } from "@/lib/utils";
 import type { MeResponse } from "@/lib/types";
 
-const NAV = [
-  { label: "Overview", href: "/dashboard", icon: LayoutGrid },
-  { label: "User Approvals", href: "/user-approvals", icon: UserCheck },
-  { label: "Host Applications", href: "/host-applications", icon: Home },
-  { label: "Events", href: "/events", icon: CalendarDays },
-  { label: "Venues", href: "/venues", icon: MapPin },
-  { label: "Taxonomy", href: "/taxonomy", icon: Tags },
-  { label: "Safety & Reports", href: "/reports", icon: AlertTriangle },
-  { label: "Safety Inbox", href: "/safety-inbox", icon: MessageSquare },
-  { label: "Push Notifications", href: "/push", icon: Bell },
-  { label: "Settings", href: "/settings", icon: Settings },
+const NAV_SECTIONS = [
+  {
+    label: "Overview",
+    items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutGrid }],
+  },
+  {
+    label: "People",
+    items: [
+      { label: "User Approvals", href: "/user-approvals", icon: UserCheck },
+      { label: "Host Applications", href: "/host-applications", icon: Home },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { label: "Events", href: "/events", icon: CalendarDays },
+      { label: "Venues", href: "/venues", icon: MapPin },
+      { label: "Taxonomy", href: "/taxonomy", icon: Tags },
+    ],
+  },
+  {
+    label: "Safety",
+    items: [
+      { label: "Reports", href: "/reports", icon: AlertTriangle },
+      { label: "Safety Inbox", href: "/safety-inbox", icon: MessageSquare },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { label: "Push Notifications", href: "/push", icon: Bell },
+      { label: "Settings", href: "/settings", icon: Settings },
+    ],
+  },
 ];
+
+function isActive(pathname: string, href: string) {
+  return pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+}
 
 export function Sidebar({ user }: { user?: MeResponse | null }) {
   const pathname = usePathname();
@@ -36,43 +64,59 @@ export function Sidebar({ user }: { user?: MeResponse | null }) {
   const role = user?.roles.includes("ops_admin") ? "Ops Admin" : "Moderator";
 
   return (
-    <aside className="flex h-screen w-[280px] shrink-0 flex-col border-r border-surface-border bg-surface">
-      <div className="border-b border-surface-border px-8 py-8">
-        <p className="text-xl font-bold text-brand-dark">offScreen</p>
-        <p className="text-xs font-semibold tracking-wide text-text-secondary">
-          Admin Console
-        </p>
+    <aside className="flex h-screen w-[260px] shrink-0 flex-col border-r border-surface-border bg-surface-sidebar">
+      <div className="border-b border-surface-border px-5 py-5">
+        <div className="flex items-center gap-3">
+          <OffscreenLogo size={32} />
+          <div>
+            <p className="font-mono text-sm font-bold tracking-tight text-brand-dark">
+              offScreen
+            </p>
+            <p className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
+              Admin Console
+            </p>
+          </div>
+        </div>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 py-4">
-        {NAV.map(({ label, href, icon: Icon }) => {
-          const active =
-            pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-3 px-8 py-3 text-sm transition-colors",
-                active
-                  ? "border-l-4 border-brand-dark bg-brand-tint pl-[28px] font-medium text-brand-dark"
-                  : "text-text-muted hover:bg-brand-tint/50"
-              )}
-            >
-              <Icon className="h-[18px] w-[18px] shrink-0" />
-              {label}
-            </Link>
-          );
-        })}
+      <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.label}>
+            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-text-disabled">
+              {section.label}
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {section.items.map(({ label, href, icon: Icon }) => {
+                const active = isActive(pathname, href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={cn(
+                      "nav-item cursor-pointer",
+                      active ? "nav-item-active" : "nav-item-inactive"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2.25 : 1.75} />
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      <div className="flex items-center gap-3 border-t border-surface-border px-8 py-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-surface-border bg-brand text-xs font-bold text-white">
-          {initials(displayName)}
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-brand-dark">{displayName}</p>
-          <p className="text-[11px] text-text-secondary">{role}</p>
+      <div className="border-t border-surface-border p-4">
+        <div className="flex items-center gap-3 rounded-lg bg-surface-inset px-3 py-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand font-mono text-[11px] font-bold text-white">
+            {initials(displayName)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold text-text-primary">{displayName}</p>
+            <p className="text-[10px] text-text-muted">{role}</p>
+          </div>
+          <span className="h-2 w-2 shrink-0 rounded-full bg-status-mint" />
         </div>
       </div>
     </aside>

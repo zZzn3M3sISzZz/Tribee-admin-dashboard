@@ -21,10 +21,10 @@ export function LegalPageShell({ title, updated, children }: LegalPageShellProps
           Back to login
         </Link>
 
-        <article className="rounded-card border border-surface-border-light bg-white p-10 shadow-card">
-          <header className="mb-8 border-b border-surface-border/40 pb-6">
-            <p className="text-xs font-semibold uppercase tracking-widest text-brand">offScreen</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-brand">{title}</h1>
+        <article className="admin-card p-10">
+          <header className="mb-8 border-b border-surface-border pb-6">
+            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-brand">offScreen</p>
+            <h1 className="mt-2 font-mono text-3xl font-semibold tracking-tight text-text-primary">{title}</h1>
             <p className="mt-2 text-sm text-text-secondary">Last updated: {updated}</p>
           </header>
 
@@ -46,7 +46,7 @@ export function LegalSection({
 }) {
   return (
     <section>
-      <h2 className="mb-2 text-base font-semibold text-brand">{title}</h2>
+      <h2 className="mb-2 text-base font-semibold text-text-primary">{title}</h2>
       <div className="space-y-3 text-text-secondary">{children}</div>
     </section>
   );

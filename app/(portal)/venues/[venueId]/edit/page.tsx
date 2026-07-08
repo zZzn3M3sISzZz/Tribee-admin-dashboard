@@ -49,9 +49,9 @@ const CITY_OPTIONS = [
 ];
 
 const BUDGET_TIERS = [
-  { value: "budget", label: "Budget" },
-  { value: "mid", label: "Mid" },
-  { value: "premium", label: "Premium" },
+  { value: "budget", label: "Budget (₹200+)" },
+  { value: "mid", label: "Mid (₹2,000)" },
+  { value: "premium", label: "Premium (₹3,500)" },
 ];
 
 const MAX_IMAGES = 3;

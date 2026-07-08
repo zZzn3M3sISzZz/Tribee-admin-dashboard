@@ -6,9 +6,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowRight, AtSign, Eye, EyeOff, Loader2, Shield, TriangleAlert } from "lucide-react";
+import {
+  ArrowRight,
+  AtSign,
+  Eye,
+  EyeOff,
+  Loader2,
+  Shield,
+  TriangleAlert,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OffscreenLogo } from "@/components/offscreen-logo";
 import { withBasePath } from "@/lib/base-path";
 
 const schema = z.object({
@@ -71,41 +80,50 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface px-6 py-16">
-      <div className="w-full max-w-[440px] space-y-10">
-        <div className="flex justify-center">
-          <div className="relative">
-            <div className="absolute -inset-1 rounded-card bg-brand/10 opacity-25 blur" />
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-card bg-brand text-center text-white shadow-card">
-              <div>
-                <div className="text-2xl">⏻</div>
-                <div className="text-[10px] font-semibold">offScreen</div>
-              </div>
-            </div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface px-6 py-16">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-60"
+        aria-hidden
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 20% 20%, rgba(27,67,50,0.06) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(217,119,6,0.04) 0%, transparent 50%)",
+        }}
+      />
+
+      <div className="relative w-full max-w-[420px] space-y-8 animate-fade-in">
+        <div className="flex flex-col items-center gap-4">
+          <OffscreenLogo size={56} priority />
+          <div className="text-center">
+            <h1 className="font-mono text-2xl font-bold tracking-tight text-brand-dark">
+              offScreen
+            </h1>
+            <p className="mt-1 text-xs font-medium uppercase tracking-widest text-text-muted">
+              Admin Console
+            </p>
           </div>
         </div>
 
-        <div className="rounded-card border border-surface-border-light bg-white p-12 shadow-card">
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight text-brand">
-              Admin Console Login
-            </h1>
-            <p className="mt-2 text-sm text-text-secondary">
-              Access restricted to authorized staff only.
+        <div className="admin-card p-8">
+          <div className="mb-6 text-center">
+            <h2 className="font-mono text-lg font-semibold text-brand-dark">
+              Staff Sign In
+            </h2>
+            <p className="mt-1.5 text-sm text-text-secondary">
+              Access restricted to authorized personnel.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
             <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-text-primary">
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 Staff Email
               </label>
               <div className="relative">
-                <AtSign className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-disabled" />
+                <AtSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-disabled" />
                 <Input
                   type="email"
                   placeholder="name@offscreen.app"
-                  className="pl-11"
+                  className="pl-9"
                   autoComplete="username"
                   {...register("email")}
                 />
@@ -116,27 +134,30 @@ function LoginForm() {
             </div>
 
             <div>
-              <div className="mb-2 flex items-end justify-between">
-                <label className="text-xs font-semibold uppercase tracking-widest text-text-primary">
+              <div className="mb-1.5 flex items-end justify-between">
+                <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
                   Password
                 </label>
-                <button type="button" className="text-[11px] font-medium text-brand">
+                <button
+                  type="button"
+                  className="cursor-pointer text-[11px] font-medium text-brand transition-colors hover:text-brand-muted"
+                >
                   Forgot password?
                 </button>
               </div>
               <div className="relative">
-                <Shield className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-disabled" />
+                <Shield className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-disabled" />
                 <Input
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••••••"
-                  className="pl-11 pr-11"
+                  className="pl-9 pr-9"
                   autoComplete="current-password"
                   {...register("password")}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-disabled"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-text-disabled transition-colors hover:text-text-secondary"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -150,7 +171,7 @@ function LoginForm() {
             {serverError && (
               <div
                 role="alert"
-                className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+                className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700"
               >
                 <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
                 {serverError}
@@ -169,65 +190,56 @@ function LoginForm() {
             </Button>
           </form>
 
-          <div className="mt-8 space-y-4 border-t border-surface-border/30 pt-8 text-center">
+          <div className="mt-6 space-y-3 border-t border-surface-border pt-6 text-center">
             <Link
               href={withBasePath("/delete-account")}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-secondary hover:text-brand"
+              className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-text-muted transition-colors hover:text-brand"
             >
               Delete Tribee account
             </Link>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-secondary"
-            >
-              <TriangleAlert className="h-3.5 w-3.5" />
-              Report Access Issue
-            </button>
           </div>
         </div>
 
         <div className="space-y-4 text-center">
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary/70">
-            <Link href={withBasePath("/privacy")} className="hover:text-brand">
-              Privacy Policy
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[10px] font-medium uppercase tracking-widest text-text-disabled">
+            <Link href={withBasePath("/privacy")} className="transition-colors hover:text-brand">
+              Privacy
             </Link>
-            <Link href={withBasePath("/terms")} className="hover:text-brand">
-              Terms &amp; Conditions
+            <Link href={withBasePath("/terms")} className="transition-colors hover:text-brand">
+              Terms
             </Link>
-            <Link href={withBasePath("/child-safety")} className="hover:text-brand">
+            <Link href={withBasePath("/child-safety")} className="transition-colors hover:text-brand">
               Child Safety
             </Link>
-            <Link href={withBasePath("/copyright")} className="hover:text-brand">
+            <Link href={withBasePath("/copyright")} className="transition-colors hover:text-brand">
               Copyright
             </Link>
-            <Link href={withBasePath("/delete-account")} className="hover:text-brand">
-              Delete Account
-            </Link>
-            <Link href={withBasePath("/feedback")} className="hover:text-brand">
-              App Feedback
+            <Link href={withBasePath("/feedback")} className="transition-colors hover:text-brand">
+              Feedback
             </Link>
           </div>
-          <div className="flex items-center justify-center gap-6 text-[11px] font-medium uppercase tracking-[0.2em] text-text-secondary/60">
-            <span>
-              System Status:{" "}
-              <strong
-                className={
-                  apiHealthy === false ? "text-red-600" : "text-brand-dark"
-                }
-              >
-                {apiHealthy === null
-                  ? "Checking…"
-                  : apiHealthy
-                    ? "Operational"
-                    : "Degraded"}
-              </strong>
+          <div className="flex items-center justify-center gap-4 font-mono text-[10px] uppercase tracking-widest text-text-disabled">
+            <span className="flex items-center gap-1.5">
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  apiHealthy === false
+                    ? "bg-red-500"
+                    : apiHealthy
+                      ? "bg-status-mint"
+                      : "animate-pulse bg-text-disabled"
+                }`}
+              />
+              {apiHealthy === null
+                ? "Checking…"
+                : apiHealthy
+                  ? "Operational"
+                  : "Degraded"}
             </span>
-            <span className="h-1 w-1 rounded-full bg-surface-border" />
-            <span>V2.4.0-ADMIN</span>
+            <span className="text-surface-border">·</span>
+            <span>v2.4.0</span>
           </div>
-          <p className="mx-auto max-w-xs text-[11px] leading-relaxed text-text-secondary/40">
-            Proprietary &amp; Confidential. Unauthorized access attempts are logged and monitored
-            by offScreen Security.
+          <p className="mx-auto max-w-xs text-[10px] leading-relaxed text-text-disabled">
+            Proprietary &amp; Confidential. Unauthorized access attempts are logged and monitored.
           </p>
         </div>
       </div>
@@ -237,7 +249,13 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading…</div>}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-surface">
+          <Loader2 className="h-5 w-5 animate-spin text-brand" />
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );

@@ -10,6 +10,10 @@ import { Button } from "@/components/ui/button";
 import { EntryFeeFields } from "@/components/entry-fee-fields";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import {
+  validateEventScheduledAt,
+  validateEventTimeLocal,
+} from "@/lib/eventSchedule";
 import { CITY_OPTIONS, cityLabel } from "@/lib/cities";
 import {
   entryFeeInrForApi,
@@ -155,6 +159,18 @@ export default function NewVenueProgramPage() {
     if (entryFeeError) {
       toast.error(entryFeeError);
       return;
+    }
+    const timeError = validateEventTimeLocal(timeLocal);
+    if (timeError) {
+      toast.error(timeError);
+      return;
+    }
+    if (scheduleKind === "single") {
+      const scheduleError = validateEventScheduledAt(new Date(scheduledAt));
+      if (scheduleError) {
+        toast.error(scheduleError);
+        return;
+      }
     }
     const entryFeeInr = entryFeeInrForApi(entryFeeKind, entryFeeAmount);
 

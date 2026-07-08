@@ -32,7 +32,7 @@ export function RefreshProgressBar({
   return (
     <div className={className}>
       <div
-        className="h-1 w-full overflow-hidden rounded-full bg-surface-border/70"
+        className="h-1 w-full overflow-hidden rounded-full bg-surface-border"
         role="progressbar"
         aria-valuenow={Math.round(progress)}
         aria-valuemin={0}
